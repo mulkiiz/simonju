@@ -1,1 +1,5 @@
 config.php
+
+# Database dumps
+*.sql
+db_simonju.sql
