@@ -1,0 +1,30 @@
+# PPJ Unsoed - Root .htaccess
+
+# Force HTTPS
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# Block direct access to sensitive files
+<FilesMatch "^(config\.php|db\.php|auth\.php|crawler\.php|_header\.php|_footer\.php|install\.sql|error\.log|.*\.md)$">
+    Require all denied
+</FilesMatch>
+
+# Block dotfiles
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Disable directory listing
+Options -Indexes
+
+# Security headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Default index
+DirectoryIndex index.php

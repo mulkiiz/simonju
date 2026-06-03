@@ -1,0 +1,16 @@
+# PPJ Unsoed - .htaccess folder /konfirmasi (halaman publik)
+
+# Force HTTPS
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# Blokir akses langsung ke helper (_konf.php) - hanya boleh di-include
+<FilesMatch "^_konf\.php$">
+    Require all denied
+</FilesMatch>
+
+# Disable directory listing
+Options -Indexes
+
+DirectoryIndex index.php

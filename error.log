@@ -1,0 +1,2 @@
+[03-Jun-2026 15:55:13 Asia/Jakarta] PHP Warning:  mysqli::__construct(): (HY000/1045): Access denied for user 'jurz2196_ppj'@'localhost' (using password: YES) in C:\xampp\htdocs\simonju\db.php on line 7
+[03-Jun-2026 15:55:13 Asia/Jakarta] DB connect failed: Access denied for user 'jurz2196_ppj'@'localhost' (using password: YES)
