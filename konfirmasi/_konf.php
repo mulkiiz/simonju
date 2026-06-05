@@ -5,11 +5,7 @@
  * File ini dipakai oleh halaman konfirmasi yang TIDAK perlu login.
  * Tetap pakai db.php dari project utama (path: ../db.php).
  */
-<<<<<<< HEAD
-require_once __DIR__ . '/../db.php';
-=======
 require_once __DIR__ . '/../includes/db.php';
->>>>>>> 344f8fb (perapihan folder, login akun jurnal, dll)
 
 // --- Session khusus untuk CSRF di halaman publik ---
 if (session_status() === PHP_SESSION_NONE) {

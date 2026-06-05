@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-config.php
-
-# Database dumps
-*.sql
-db_simonju.sql
-=======
 # Config sensitif
 includes/config.php
 
@@ -17,4 +10,3 @@ uploads/jurnal/*
 
 # Log error
 error.log
->>>>>>> 344f8fb (perapihan folder, login akun jurnal, dll)
