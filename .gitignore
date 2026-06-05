@@ -1,5 +1,20 @@
+<<<<<<< HEAD
 config.php
 
 # Database dumps
 *.sql
 db_simonju.sql
+=======
+# Config sensitif
+includes/config.php
+
+# Semua file SQL
+*.sql
+
+# Isi folder uploads/jurnal (folder tetap ada, isi tidak)
+uploads/jurnal/*
+!uploads/jurnal/.gitkeep
+
+# Log error
+error.log
+>>>>>>> 344f8fb (perapihan folder, login akun jurnal, dll)

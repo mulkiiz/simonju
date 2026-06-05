@@ -1,0 +1,4 @@
+Options -Indexes
+<FilesMatch "\.php$">
+    # Allow PHP execution (needed for includes via require)
+</FilesMatch>

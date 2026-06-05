@@ -1,8 +1,20 @@
 <?php
+<<<<<<< HEAD
 require_once __DIR__ . '/auth.php';
 
 if (is_logged_in()) {
     header('Location: dashboard.php');
+=======
+require_once __DIR__ . '/includes/auth.php';
+
+// Already logged in → redirect to appropriate dashboard
+if (is_logged_in()) {
+    if (is_jurnal_user()) {
+        header('Location: jurnal/');
+    } else {
+        header('Location: admin/');
+    }
+>>>>>>> 344f8fb (perapihan folder, login akun jurnal, dll)
     exit;
 }
 
@@ -18,12 +30,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($u === '' || $p === '') {
         $error = 'Username dan password wajib diisi.';
     } else {
+<<<<<<< HEAD
         [$ok, $msgRet] = attempt_login($u, $p);
         if ($ok) {
             header('Location: dashboard.php');
             exit;
         }
         $error = $msgRet;
+=======
+        [$ok, $result] = attempt_login($u, $p);
+        if ($ok) {
+            if ($result === 'jurnal') {
+                header('Location: jurnal/');
+            } else {
+                header('Location: admin/');
+            }
+            exit;
+        }
+        $error = $result;
+>>>>>>> 344f8fb (perapihan folder, login akun jurnal, dll)
     }
 }
 ?><!doctype html>
@@ -54,11 +79,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <?= csrf_field() ?>
       <label>
         <span class="lbl"><span class="ico">&#128100;</span> Username</span>
+<<<<<<< HEAD
         <input type="text" name="username" required autofocus placeholder="Masukkan username">
       </label>
       <label>
         <span class="lbl"><span class="ico">&#128274;</span> Password</span>
         <input type="password" name="password" required placeholder="Masukkan password">
+=======
+        <input type="text" name="username" required autofocus placeholder="Username admin atau slug jurnal">
+      </label>
+      <label>
+        <span class="lbl"><span class="ico">&#128274;</span> Password</span>
+        <input type="password" name="password" required placeholder="Password">
+>>>>>>> 344f8fb (perapihan folder, login akun jurnal, dll)
       </label>
       <button type="submit" class="btn btn-primary btn-block btn-login">
         Masuk

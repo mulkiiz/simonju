@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # PPJ Unsoed - Root .htaccess
 
 # Force HTTPS
@@ -28,3 +29,12 @@ Options -Indexes
 
 # Default index
 DirectoryIndex index.php
+=======
+Options -Indexes
+DirectoryIndex index.php
+
+# Deny access to sensitive files
+<FilesMatch "\.(sql|log|md)$">
+    Require all denied
+</FilesMatch>
+>>>>>>> 344f8fb (perapihan folder, login akun jurnal, dll)

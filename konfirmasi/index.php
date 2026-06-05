@@ -23,6 +23,7 @@ if (strlen($q) > 100) $q = substr($q, 0, 100);
 
 /* ------------------------------------------------------------------
  * STATISTIK GLOBAL (selalu dihitung dari seluruh data, bukan hasil cari)
+<<<<<<< HEAD
  * ------------------------------------------------------------------ */
 
 // === Reusable SQL (sama persis dg statistik.php & dashboard.php) ===
@@ -32,12 +33,26 @@ $BELUM_ISSN_SQL = "
 ";
 
 // === Top 4 cards: hitung SEMUA jurnal ===
+=======
+ * Angka-angka ini berubah otomatis seiring konfirmasi masuk & di-approve
+ * admin (status jurnal berubah jadi 'pending' lalu 'terkonfirmasi').
+ * ------------------------------------------------------------------ */
+>>>>>>> 344f8fb (perapihan folder, login akun jurnal, dll)
 $stat = fetch_one(
     "SELECT
         COUNT(*)                                                   AS total,
         SUM(konfirmasi_status='terkonfirmasi')                     AS terkonfirmasi,
         SUM(konfirmasi_status='pending')                           AS pending,
+<<<<<<< HEAD
         SUM(konfirmasi_status IS NULL OR konfirmasi_status='' OR konfirmasi_status='belum') AS belum
+=======
+        SUM(konfirmasi_status IS NULL OR konfirmasi_status='' OR konfirmasi_status='belum') AS belum,
+        SUM(akreditasi_peringkat IS NOT NULL AND akreditasi_peringkat<>'') AS akreditasi,
+        SUM(is_scopus=1)                                           AS scopus,
+        SUM((akreditasi_peringkat IS NULL OR akreditasi_peringkat='')
+            AND ((p_issn IS NOT NULL AND p_issn<>'') OR (e_issn IS NOT NULL AND e_issn<>''))) AS punya_issn_blm_akred,
+        SUM((p_issn IS NULL OR p_issn='') AND (e_issn IS NULL OR e_issn='')) AS belum_issn
+>>>>>>> 344f8fb (perapihan folder, login akun jurnal, dll)
      FROM jurnals"
 ) ?: [];
 
@@ -49,6 +64,7 @@ $s_total        = (int)($stat['total'] ?? 0);
 $s_terkonf      = (int)($stat['terkonfirmasi'] ?? 0);
 $s_pending      = (int)($stat['pending'] ?? 0);
 $s_belum        = (int)($stat['belum'] ?? 0);
+<<<<<<< HEAD
 
 $s_total += $pending_baru;
 $s_review = $s_pending + $pending_baru;
@@ -82,12 +98,40 @@ $sinta_rows = fetch_all(
       WHERE konfirmasi_status='terkonfirmasi'
         AND akreditasi_jenis='sinta'
         AND akreditasi_peringkat IS NOT NULL AND akreditasi_peringkat<>''
+=======
+$s_akred        = (int)($stat['akreditasi'] ?? 0);
+$s_scopus       = (int)($stat['scopus'] ?? 0);
+$s_issn_blm     = (int)($stat['punya_issn_blm_akred'] ?? 0);
+$s_belum_issn   = (int)($stat['belum_issn'] ?? 0);
+
+/* ------------------------------------------------------------------
+ * Pengajuan "jurnal baru" yang masih menunggu persetujuan admin ikut
+ * dihitung sebagai jurnal yang menunggu konfirmasi. Karena itu jumlah
+ * ini DITAMBAHKAN ke total agar konsisten:
+ *
+ *     total = belum konfirmasi + menunggu review + sudah terkonfirmasi
+ *
+ * di mana "menunggu review" mencakup pengajuan jurnal baru.
+ * ------------------------------------------------------------------ */
+$s_total += $pending_baru;
+
+// "Menunggu direview" = konfirmasi yg sudah masuk tapi belum di-approve
+//  (status pending pada jurnals) + pengajuan jurnal baru yg belum di-approve.
+$s_review = $s_pending + $pending_baru;
+
+// Rincian jumlah jurnal per peringkat Sinta (untuk pie chart)
+$sinta_rows = fetch_all(
+    "SELECT akreditasi_peringkat AS p, COUNT(*) AS n
+       FROM jurnals
+      WHERE akreditasi_peringkat IS NOT NULL AND akreditasi_peringkat<>''
+>>>>>>> 344f8fb (perapihan folder, login akun jurnal, dll)
       GROUP BY akreditasi_peringkat"
 ) ?: [];
 $sinta_map = [];
 foreach ($sinta_rows as $r) {
     $sinta_map[trim($r['p'])] = (int)$r['n'];
 }
+<<<<<<< HEAD
 
 // Pie chart: Scopus + Sinta 1..6 + Belum Terakreditasi (sama dg statistik.php)
 $pie = [
@@ -99,6 +143,17 @@ $pie = [
     ['label' => 'Sinta 5',             'n' => (int)($sinta_map['Sinta 5'] ?? 0),      'color' => '#e8852b'],
     ['label' => 'Sinta 6',             'n' => (int)($sinta_map['Sinta 6'] ?? 0),      'color' => '#d9603a'],
     ['label' => 'Belum Akreditasi',    'n' => $s_belum_akr,                            'color' => '#aab3c0'],
+=======
+// Susun data pie: Sinta 1..6 + Belum Terakreditasi
+$pie = [
+    ['label' => 'Sinta 1',            'n' => (int)($sinta_map['Sinta 1'] ?? 0), 'color' => '#1c7a47'],
+    ['label' => 'Sinta 2',            'n' => (int)($sinta_map['Sinta 2'] ?? 0), 'color' => '#2bb56b'],
+    ['label' => 'Sinta 3',            'n' => (int)($sinta_map['Sinta 3'] ?? 0), 'color' => '#5cc98c'],
+    ['label' => 'Sinta 4',            'n' => (int)($sinta_map['Sinta 4'] ?? 0), 'color' => '#e0a91d'],
+    ['label' => 'Sinta 5',            'n' => (int)($sinta_map['Sinta 5'] ?? 0), 'color' => '#e8852b'],
+    ['label' => 'Sinta 6',            'n' => (int)($sinta_map['Sinta 6'] ?? 0), 'color' => '#d9603a'],
+    ['label' => 'Belum Terakreditasi','n' => max(0, $s_total - $s_akred),       'color' => '#aab3c0'],
+>>>>>>> 344f8fb (perapihan folder, login akun jurnal, dll)
 ];
 
 /* ------------------------------------------------------------------
@@ -394,8 +449,13 @@ konf_header('Konfirmasi Data Jurnal');
       <h3>Profil Akreditasi &amp; ISSN</h3>
     </div>
     <p class="konf-prof-sub">
+<<<<<<< HEAD
       Gambaran kondisi jurnal Unsoed yang sudah <strong>terkonfirmasi</strong>
       — angka akan terus diperbarui seiring masuknya konfirmasi data.
+=======
+      Gambaran kondisi jurnal Unsoed saat ini — angka akan terus diperbarui
+      seiring masuknya konfirmasi data dari para pengelola jurnal.
+>>>>>>> 344f8fb (perapihan folder, login akun jurnal, dll)
     </p>
 
     <div class="konf-prof-grid">
