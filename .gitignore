@@ -1,12 +1,51 @@
-# Config sensitif
+# === CONFIG & SECRETS (JANGAN PERNAH di-commit) ===
 includes/config.php
+includes/config.local.php
+config.php
+.env
+.env.local
 
-# Semua file SQL
-*.sql
-
-# Isi folder uploads/jurnal (folder tetap ada, isi tidak)
-uploads/jurnal/*
-!uploads/jurnal/.gitkeep
-
-# Log error
+# === LOG FILES ===
 error.log
+*.log
+logs/
+cron/logs/
+
+# === USER UPLOADS (folder di-create oleh .cpanel.yml, isinya jangan) ===
+uploads/
+
+# === SQL DUMP & MIGRATION ===
+*.sql
+*.sql.gz
+*.sqlite
+*.db
+
+# === BACKUP & ARCHIVE ===
+*.bak
+*.backup
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*~
+
+# === EDITOR / IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+nbproject/
+.project
+.buildpath
+
+# === OS JUNK ===
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# === CACHE & TEMP ===
+cache/
+tmp/
+temp/
+*.tmp

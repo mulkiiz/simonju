@@ -1,0 +1,30 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/jurz2196/public_html/ppj.jurnalsinta.id
+
+    # Pastikan semua folder target ada
+    - /bin/mkdir -p $DEPLOYPATH/admin
+    - /bin/mkdir -p $DEPLOYPATH/assets
+    - /bin/mkdir -p $DEPLOYPATH/cron
+    - /bin/mkdir -p $DEPLOYPATH/docs
+    - /bin/mkdir -p $DEPLOYPATH/includes
+    - /bin/mkdir -p $DEPLOYPATH/jurnal
+    - /bin/mkdir -p $DEPLOYPATH/konfirmasi
+    - /bin/mkdir -p $DEPLOYPATH/lib
+    - /bin/mkdir -p $DEPLOYPATH/uploads
+
+    # Copy isi folder (config.php tidak ikut karena di-gitignore)
+    - /bin/cp -R admin/*       $DEPLOYPATH/admin/
+    - /bin/cp -R assets/*      $DEPLOYPATH/assets/
+    - /bin/cp -R cron/*        $DEPLOYPATH/cron/
+    - /bin/cp -R docs/*        $DEPLOYPATH/docs/
+    - /bin/cp -R includes/*    $DEPLOYPATH/includes/
+    - /bin/cp -R jurnal/*      $DEPLOYPATH/jurnal/
+    - /bin/cp -R konfirmasi/*  $DEPLOYPATH/konfirmasi/
+    - /bin/cp -R lib/*         $DEPLOYPATH/lib/
+
+    # Copy file di root
+    - /bin/cp index.php   $DEPLOYPATH/
+    - /bin/cp logout.php  $DEPLOYPATH/
+    - /bin/cp .htaccess   $DEPLOYPATH/
