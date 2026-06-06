@@ -1,4 +1,3 @@
----
 deployment:
   tasks:
     - export DEPLOYPATH=/home/jurz2196/public_html/ppj.jurnalsinta.id
