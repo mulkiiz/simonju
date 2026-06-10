@@ -15,7 +15,7 @@ jobs:
           host: ppj.jurnalsinta.id
           username: jurz2196
           password: ${{ secrets.CPANEL_PASSWORD }}
-          port: 22
+          port: 2222
           script: |
             cd /home/jurz2196/repo/simonju
             git pull origin master
