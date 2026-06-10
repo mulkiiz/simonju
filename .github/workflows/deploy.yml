@@ -9,17 +9,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger cPanel Git Deploy
-        run: |
-          RESPONSE=$(curl -s --insecure -o /tmp/cpanel_response.json -w "%{http_code}" \
-            -X POST \
-            "https://ppj.jurnalsinta.id:2083/execute/VersionControlDeployment/deploy" \
-            -u "jurz2196:${{ secrets.CPANEL_PASSWORD }}" \
-            --data-urlencode "repository_root=/home/jurz2196/repo/simonju")
-          echo "HTTP Status: $RESPONSE"
-          echo "Response body:"
-          cat /tmp/cpanel_response.json
-          if [ "$RESPONSE" != "200" ]; then
-            echo "Deploy failed with HTTP $RESPONSE"
-            exit 1
-          fi
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ppj.jurnalsinta.id
+          username: jurz2196
+          password: ${{ secrets.CPANEL_PASSWORD }}
+          port: 22
+          script: |
+            cd /home/jurz2196/repo/simonju
+            git pull origin master
