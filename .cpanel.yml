@@ -24,6 +24,7 @@ deployment:
     - /bin/cp -R lib/*         $DEPLOYPATH/lib/
 
     # Copy file di root
-    - /bin/cp index.php   $DEPLOYPATH/
-    - /bin/cp logout.php  $DEPLOYPATH/
-    - /bin/cp .htaccess   $DEPLOYPATH/
+    - /bin/cp index.php          $DEPLOYPATH/
+    - /bin/cp logout.php         $DEPLOYPATH/
+    - /bin/cp .htaccess          $DEPLOYPATH/
+    - /bin/cp webhook_deploy.php $DEPLOYPATH/
