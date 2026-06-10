@@ -11,12 +11,13 @@ jobs:
     steps:
       - name: Trigger cPanel Git Deploy
         run: |
-          RESPONSE=$(curl -s -o /tmp/cpanel_response.json -w "%{http_code}" \
+          RESPONSE=$(curl -s --insecure -o /tmp/cpanel_response.json -w "%{http_code}" \
             -X POST \
             "https://ppj.jurnalsinta.id:2083/execute/VersionControlDeployment/deploy" \
-            -H "Authorization: cpanel jurz2196:${{ secrets.CPANEL_API_TOKEN }}" \
+            -u "jurz2196:${{ secrets.CPANEL_PASSWORD }}" \
             --data-urlencode "repository_root=/home/jurz2196/repo/simonju")
           echo "HTTP Status: $RESPONSE"
+          echo "Response body:"
           cat /tmp/cpanel_response.json
           if [ "$RESPONSE" != "200" ]; then
             echo "Deploy failed with HTTP $RESPONSE"
