@@ -49,3 +49,9 @@ cache/
 tmp/
 temp/
 *.tmp
+
+# === CLAUDE CODE / AI AGENTS ===
+.agents/
+AGENTS.md
+skills-lock.json
+.claude/
