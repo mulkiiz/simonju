@@ -7,6 +7,12 @@ require_once __DIR__ . '/../includes/header_admin.php';
 
 $msg = $err = '';
 
+/* ── Notifikasi dari redirect ──────────────────────── */
+if (!empty($_GET['reset_ok']))  $msg = h($_GET['reset_ok']);
+if (!empty($_GET['reset_err'])) $err = h($_GET['reset_err']);
+if (!empty($_GET['email_ok']))  $msg = h($_GET['email_ok']);
+if (!empty($_GET['email_err'])) $err = h($_GET['email_err']);
+
 /* ── Ganti password admin ──────────────────────────── */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
@@ -46,10 +52,12 @@ $page    = min($page, $pages);
 $offset  = ($page - 1) * $per_page;
 
 $jurnal_accounts = fetch_all(
-    "SELECT ja.id, ja.username, ja.password_hash, ja.failed_attempts, ja.locked_until, ja.created_at,
-            j.nama_jurnal, j.konfirmasi_token, j.unit_kerja
+    "SELECT ja.id, ja.jurnal_id, ja.username, ja.password_hash, ja.failed_attempts, ja.locked_until, ja.created_at,
+            j.nama_jurnal, j.konfirmasi_token, j.unit_kerja,
+            e.email AS email_editor, e.nama AS nama_editor
      FROM jurnal_accounts ja
      JOIN jurnals j ON j.id = ja.jurnal_id
+     LEFT JOIN editor e ON e.jurnal_id = ja.jurnal_id
      {$where}
      ORDER BY j.nama_jurnal ASC
      LIMIT {$per_page} OFFSET {$offset}",
@@ -125,6 +133,24 @@ if (!in_array($tab, ['admin', 'jurnal'])) $tab = 'admin';
 .paging .dot { border:none; color:var(--text-muted, #667085); }
 .paging .info { border:none; font-size:12px; color:var(--text-muted, #667085); margin-left:auto; }
 
+/* ── Action buttons in table ────────────────── */
+.tbl-actions { display:flex; gap:4px; }
+.btn-icon {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:30px; height:30px; border-radius:6px; border:1px solid var(--border, #d0d5dd);
+    background:var(--bg, #fff); cursor:pointer; font-size:14px; text-decoration:none;
+    transition:background .15s;
+}
+.btn-icon:hover { background:var(--bg-subtle, #f2f4f7); }
+.btn-icon-danger:hover { background:#fef3f2; border-color:#fda29b; }
+.btn-icon-primary:hover { background:#eff8ff; border-color:#84caff; }
+.email-cell { font-size:12px; color:var(--text-muted,#667085); max-width:180px; word-break:break-all; }
+.email-empty { color:var(--text-muted,#667085); font-size:12px; font-style:italic; }
+
+/* ── Toolbar row ─────────────────────────────── */
+.toolbar-row { display:flex; gap:8px; margin-bottom:16px; align-items:flex-end; flex-wrap:wrap; }
+.toolbar-row .search-bar { margin-bottom:0; }
+
 /* ── Admin card ──────────────────────────────── */
 .admin-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; margin-bottom:24px; }
 .admin-card {
@@ -184,14 +210,23 @@ if (!in_array($tab, ['admin', 'jurnal'])) $tab = 'admin';
 
 <?php else: ?>
 <!-- ══════════════ TAB: AKUN JURNAL ══════════════ -->
-<form class="search-bar" method="get">
-  <input type="hidden" name="tab" value="jurnal">
-  <input type="text" name="q" value="<?= h($search) ?>" placeholder="Cari username, nama jurnal, unit kerja…">
-  <button type="submit">🔍 Cari</button>
-  <?php if ($search !== ''): ?>
-    <a href="?tab=jurnal" class="btn btn-secondary" style="padding:8px 12px;font-size:14px">✕</a>
-  <?php endif; ?>
-</form>
+<div class="toolbar-row">
+  <form class="search-bar" method="get" style="margin-bottom:0">
+    <input type="hidden" name="tab" value="jurnal">
+    <input type="text" name="q" value="<?= h($search) ?>" placeholder="Cari username, nama jurnal, unit kerja…">
+    <button type="submit">🔍 Cari</button>
+    <?php if ($search !== ''): ?>
+      <a href="?tab=jurnal" class="btn btn-secondary" style="padding:8px 12px;font-size:14px">✕</a>
+    <?php endif; ?>
+  </form>
+  <form method="post" action="send_email_jurnal.php">
+    <?= csrf_field() ?>
+    <input type="hidden" name="test_email" value="1">
+    <button type="submit" class="btn btn-secondary" title="Kirim draft email ke admiportfolio@gmail.com untuk keperluan testing">
+      🧪 Test Email
+    </button>
+  </form>
+</div>
 
 <?php if ($search !== ''): ?>
   <p class="muted small" style="margin-bottom:12px">
@@ -210,9 +245,11 @@ if (!in_array($tab, ['admin', 'jurnal'])) $tab = 'admin';
       <th>Username</th>
       <th>Nama Jurnal</th>
       <th>Unit Kerja</th>
+      <th>Email Ketua Editor</th>
       <th>Password (Token)</th>
       <th>Status</th>
       <th>Dibuat</th>
+      <th>Aksi</th>
     </tr>
   </thead>
   <tbody>
@@ -226,6 +263,16 @@ if (!in_array($tab, ['admin', 'jurnal'])) $tab = 'admin';
       <td><strong class="mono"><?= h($a['username']) ?></strong></td>
       <td><?= h($a['nama_jurnal']) ?></td>
       <td class="muted"><?= h($a['unit_kerja'] ?? '-') ?></td>
+      <td>
+        <?php
+          $em = trim($a['email_editor'] ?? '');
+          if ($em !== '' && filter_var($em, FILTER_VALIDATE_EMAIL)):
+        ?>
+          <span class="email-cell"><?= h($em) ?></span>
+        <?php else: ?>
+          <span class="email-empty">—</span>
+        <?php endif; ?>
+      </td>
       <td class="mono"><?= h($a['konfirmasi_token'] ?? '-') ?></td>
       <td>
         <?php if ($locked): ?>
@@ -237,6 +284,28 @@ if (!in_array($tab, ['admin', 'jurnal'])) $tab = 'admin';
         <?php endif; ?>
       </td>
       <td class="muted"><?= $a['created_at'] ? date('d M Y', strtotime($a['created_at'])) : '-' ?></td>
+      <td>
+        <div class="tbl-actions">
+          <!-- Reset ke token -->
+          <form method="post" action="reset_jurnal_pass.php" style="display:inline"
+                onsubmit="return confirm('Reset password <?= h(addslashes($a['username'])) ?> ke token asal?')">
+            <?= csrf_field() ?>
+            <input type="hidden" name="ja_id" value="<?= (int)$a['id'] ?>">
+            <button type="submit" class="btn-icon btn-icon-danger" title="Reset password ke token asal">🔑</button>
+          </form>
+          <!-- Kirim email (hanya jika email ada) -->
+          <?php if ($em !== '' && filter_var($em, FILTER_VALIDATE_EMAIL)): ?>
+          <form method="post" action="send_email_jurnal.php" style="display:inline"
+                onsubmit="return confirm('Kirim email login ke <?= h(addslashes($em)) ?>?')">
+            <?= csrf_field() ?>
+            <input type="hidden" name="ja_id" value="<?= (int)$a['id'] ?>">
+            <button type="submit" class="btn-icon btn-icon-primary" title="Kirim email login ke ketua editor">✉️</button>
+          </form>
+          <?php else: ?>
+            <span class="btn-icon" style="opacity:.35;cursor:default" title="Email belum diisi">✉️</span>
+          <?php endif; ?>
+        </div>
+      </td>
     </tr>
   <?php endforeach; ?>
   </tbody>

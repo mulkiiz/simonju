@@ -209,3 +209,49 @@ function change_password($uid, $old, $new) {
     exec_q("UPDATE users SET password_hash=? WHERE id=?", 'si', [$hash, $uid]);
     return [true, 'Password berhasil diganti.'];
 }
+
+/**
+ * Ganti password akun jurnal editor. Verifikasi password lama dulu.
+ * @param int    $jurnal_id  dari session jurnal_id
+ * @param string $old        password lama (plain text)
+ * @param string $new        password baru (plain text)
+ */
+function change_jurnal_password(int $jurnal_id, string $old, string $new): array
+{
+    $ja = fetch_one("SELECT * FROM jurnal_accounts WHERE jurnal_id=? LIMIT 1", 'i', [$jurnal_id]);
+    if (!$ja) {
+        return [false, 'Akun jurnal tidak ditemukan.'];
+    }
+    if (!password_verify($old, $ja['password_hash'])) {
+        return [false, 'Password / token lama salah.'];
+    }
+    if (strlen($new) < 8) {
+        return [false, 'Password baru minimal 8 karakter.'];
+    }
+    $hash = password_hash($new, PASSWORD_BCRYPT);
+    exec_q("UPDATE jurnal_accounts SET password_hash=? WHERE jurnal_id=?", 'si', [$hash, $jurnal_id]);
+    return [true, 'Password berhasil diganti.'];
+}
+
+/**
+ * Reset password akun jurnal ke konfirmasi_token asal (hanya oleh admin).
+ * @param int $ja_id  id di tabel jurnal_accounts
+ */
+function reset_jurnal_password_to_token(int $ja_id): array
+{
+    $ja = fetch_one(
+        "SELECT ja.id, j.konfirmasi_token
+         FROM jurnal_accounts ja JOIN jurnals j ON j.id = ja.jurnal_id
+         WHERE ja.id = ? LIMIT 1",
+        'i', [$ja_id]
+    );
+    if (!$ja || empty($ja['konfirmasi_token'])) {
+        return [false, 'Akun atau token tidak ditemukan.'];
+    }
+    $hash = password_hash($ja['konfirmasi_token'], PASSWORD_BCRYPT);
+    exec_q(
+        "UPDATE jurnal_accounts SET password_hash=?, failed_attempts=0, locked_until=NULL WHERE id=?",
+        'si', [$hash, $ja_id]
+    );
+    return [true, 'Password berhasil direset ke token asal.'];
+}
