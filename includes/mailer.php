@@ -1,8 +1,11 @@
 <?php
 /**
  * Lightweight SMTP mailer via SSL socket (port 465 / SMTPS).
- * No external dependencies. Uses constants from config.php.
+ * No external dependencies. Loads config.smtp.php jika constants belum terdefinisi.
  */
+if (!defined('SMTP_HOST')) {
+    require_once __DIR__ . '/config.smtp.php';
+}
 
 /**
  * @param string $to        Recipient email
