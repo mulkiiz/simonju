@@ -2,6 +2,7 @@
 includes/config.php
 includes/config.local.php
 config.php
+cron/config.agen.php
 .env
 .env.local
 
@@ -10,6 +11,8 @@ error.log
 *.log
 logs/
 cron/logs/
+cron/log_agen_harian.txt
+cron/galeri24_raw.html
 
 # === USER UPLOADS (folder di-create oleh .cpanel.yml, isinya jangan) ===
 uploads/
