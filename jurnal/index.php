@@ -15,6 +15,20 @@ $editor = fetch_one("SELECT * FROM editor WHERE jurnal_id=?", 'i', [$jid]) ?: [
     'scopus_id'=>'','sinta_id'=>'','gscholar_id'=>'',
 ];
 
+$akr = fetch_one("SELECT * FROM akreditasi_periode WHERE jurnal_id=? LIMIT 1", 'i', [$jid]) ?: [
+    'no_sk'=>'','peringkat'=>'',
+    'mulai_volume'=>'','mulai_nomor'=>'','mulai_tahun'=>'',
+    'sampai_volume'=>'','sampai_nomor'=>'','sampai_tahun'=>'',
+];
+
+// Status akreditasi (form masa berlaku hanya aktif bila sudah terakreditasi)
+$is_akreditasi = !in_array((string)($j['akreditasi_jenis'] ?? ''), ['', 'belum'], true)
+              || (int)($j['is_scopus'] ?? 0) === 1;
+// Peringkat efektif: dari tabel periode, fallback ke jurnals.akreditasi_peringkat
+$cur_peringkat = trim((string)$akr['peringkat']) !== ''
+    ? trim((string)$akr['peringkat'])
+    : trim((string)($j['akreditasi_peringkat'] ?? ''));
+
 $terbitan = fetch_all(
     "SELECT * FROM terbitan WHERE jurnal_id=? ORDER BY tahun DESC, volume DESC, nomor DESC",
     'i', [$jid]
@@ -101,6 +115,11 @@ $upload_base = '../uploads/jurnal/';
   <?php $ss = $_GET['scanned']; ?>
   <div class="alert alert-<?= $ss==='ok'?'info':'error' ?>">
     <?= h($_GET['msg'] ?? 'Scan judol selesai.') ?>
+  </div>
+<?php endif; ?>
+<?php if (isset($_GET['akr'])): ?>
+  <div class="alert alert-<?= $_GET['akr']==='ok'?'info':'error' ?>">
+    <?= h($_GET['msg'] ?? 'Akreditasi tersimpan.') ?>
   </div>
 <?php endif; ?>
 <?php if (isset($_GET['upload'])): ?>
@@ -260,6 +279,63 @@ $upload_base = '../uploads/jurnal/';
       <input type="file" name="file" accept=".pdf" required style="font-size:13px;margin-bottom:6px;display:block">
       <button type="submit" class="btn btn-sm btn-primary">⬆️ Upload PDF</button>
       <span class="muted small" style="margin-left:6px">Maks 2MB</span>
+    </form>
+
+    <hr style="margin:14px 0;border:none;border-top:1px solid #eaecf0">
+
+    <h4 style="margin:0 0 4px">🗓️ Masa Berlaku Akreditasi</h4>
+    <?php
+      $has_akr = trim($akr['mulai_tahun'].$akr['sampai_tahun'].$akr['mulai_volume'].$akr['sampai_volume']) !== '';
+      $fmt = function($v,$n,$t){ return 'Vol ' . ($v!==''?h($v):'—') . ' No ' . ($n!==''?h($n):'—') . ' Th ' . ($t!==''?h($t):'—'); };
+      $peringkat_opts = ['Sinta 1','Sinta 2','Sinta 3','Sinta 4','Sinta 5','Sinta 6'];
+      $inp = 'flex:1;font-size:12px;padding:6px 8px;border:1px solid #cdd5e0;border-radius:6px';
+    ?>
+    <?php if (!$is_akreditasi): ?>
+      <p class="muted small" style="margin:0 0 8px">⚪ Jurnal belum terakreditasi — isian masa berlaku dinonaktifkan.</p>
+    <?php elseif ($has_akr): ?>
+      <p class="muted small" style="margin:0 0 8px">
+        Mulai <strong><?= $fmt($akr['mulai_volume'],$akr['mulai_nomor'],$akr['mulai_tahun']) ?></strong><br>
+        sampai <strong><?= $fmt($akr['sampai_volume'],$akr['sampai_nomor'],$akr['sampai_tahun']) ?></strong>
+        <?php if ($cur_peringkat !== ''): ?> &middot; <?= h($cur_peringkat) ?><?php endif; ?>
+        <?php if (trim($akr['no_sk']) !== ''): ?><br>No. SK: <?= h($akr['no_sk']) ?><?php endif; ?>
+      </p>
+    <?php else: ?>
+      <p class="muted small" style="margin:0 0 8px">Belum diisi.</p>
+    <?php endif; ?>
+
+    <form method="post" action="akreditasi_save.php" style="margin-top:4px">
+      <?= csrf_field() ?>
+      <fieldset <?= $is_akreditasi ? '' : 'disabled' ?> style="border:0;padding:0;margin:0;min-width:0">
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <select name="peringkat" style="<?= $inp ?>">
+          <option value="">— Peringkat —</option>
+          <?php
+            $opts = $peringkat_opts;
+            if ($cur_peringkat !== '' && !in_array($cur_peringkat, $opts, true)) {
+                array_unshift($opts, $cur_peringkat);
+            }
+            foreach ($opts as $opt):
+          ?>
+            <option value="<?= h($opt) ?>" <?= $opt === $cur_peringkat ? 'selected' : '' ?>><?= h($opt) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <input type="text" name="no_sk" value="<?= h($akr['no_sk']) ?>" placeholder="No. SK akreditasi"
+               maxlength="150" style="<?= $inp ?>">
+      </div>
+      <div class="muted small" style="margin:4px 0 2px">Mulai</div>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <input type="text" name="mulai_volume" value="<?= h($akr['mulai_volume']) ?>" placeholder="Volume" maxlength="20" style="<?= $inp ?>">
+        <input type="text" name="mulai_nomor" value="<?= h($akr['mulai_nomor']) ?>" placeholder="Nomor" maxlength="20" style="<?= $inp ?>">
+        <input type="text" name="mulai_tahun" value="<?= h($akr['mulai_tahun']) ?>" placeholder="Tahun" inputmode="numeric" maxlength="4" style="<?= $inp ?>">
+      </div>
+      <div class="muted small" style="margin:4px 0 2px">Sampai</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input type="text" name="sampai_volume" value="<?= h($akr['sampai_volume']) ?>" placeholder="Volume" maxlength="20" style="<?= $inp ?>">
+        <input type="text" name="sampai_nomor" value="<?= h($akr['sampai_nomor']) ?>" placeholder="Nomor" maxlength="20" style="<?= $inp ?>">
+        <input type="text" name="sampai_tahun" value="<?= h($akr['sampai_tahun']) ?>" placeholder="Tahun" inputmode="numeric" maxlength="4" style="<?= $inp ?>">
+      </div>
+      <button type="submit" class="btn btn-sm btn-primary">💾 Simpan Masa Berlaku</button>
+      </fieldset>
     </form>
   </div>
 
