@@ -340,25 +340,31 @@ $upload_base = '../uploads/jurnal/';
   </div>
 
   <!-- COVER JURNAL -->
-  <div class="card">
+  <div class="card" style="display:flex;flex-direction:column">
     <h3>🖼️ Cover Depan Jurnal</h3>
-    <?php if (!empty($j['file_cover'])): ?>
-      <p style="text-align:center;margin:8px 0">
-        <a href="<?= h($upload_base . $j['file_cover']) ?>" target="_blank" rel="noopener">
-          <img src="<?= h($upload_base . $j['file_cover']) ?>" alt="Cover <?= h($j['nama_jurnal']) ?>"
-               style="max-width:140px;max-height:180px;border-radius:6px;border:1px solid #eaecf0">
-        </a>
-      </p>
-    <?php else: ?>
-      <p class="muted">Belum ada cover.</p>
-    <?php endif; ?>
-    <form method="post" action="upload.php" enctype="multipart/form-data" style="margin-top:8px">
-      <?= csrf_field() ?>
-      <input type="hidden" name="upload_type" value="cover">
-      <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp" required style="font-size:13px;margin-bottom:6px;display:block">
-      <button type="submit" class="btn btn-sm btn-primary">⬆️ Upload Gambar</button>
-      <span class="muted small" style="margin-left:6px">JPG/PNG/WebP, maks 2MB</span>
-    </form>
+    <div style="display:flex;gap:14px;flex:1;align-items:stretch">
+      <!-- Kolom kiri: kontrol upload -->
+      <div style="flex:1;display:flex;flex-direction:column">
+        <form method="post" action="upload.php" enctype="multipart/form-data" style="margin-top:4px">
+          <?= csrf_field() ?>
+          <input type="hidden" name="upload_type" value="cover">
+          <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp" required style="font-size:13px;margin-bottom:6px;display:block;max-width:100%">
+          <button type="submit" class="btn btn-sm btn-primary">⬆️ Upload Gambar</button>
+          <span class="muted small" style="display:block;margin-top:6px">JPG/PNG/WebP, maks 2MB</span>
+        </form>
+      </div>
+      <!-- Kolom kanan: preview cover -->
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#f8fafc;border:1px solid #eaecf0;border-radius:8px;min-height:160px;padding:8px">
+        <?php if (!empty($j['file_cover'])): ?>
+          <a href="<?= h($upload_base . $j['file_cover']) ?>" target="_blank" rel="noopener" style="display:block;line-height:0">
+            <img src="<?= h($upload_base . $j['file_cover']) ?>" alt="Cover <?= h($j['nama_jurnal']) ?>"
+                 style="max-width:100%;max-height:100%;border-radius:6px;border:1px solid #eaecf0;object-fit:contain">
+          </a>
+        <?php else: ?>
+          <span class="muted small">Belum ada cover.</span>
+        <?php endif; ?>
+      </div>
+    </div>
   </div>
 </section>
 
