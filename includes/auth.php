@@ -255,3 +255,81 @@ function reset_jurnal_password_to_token(int $ja_id): array
     );
     return [true, 'Password berhasil direset ke token asal.'];
 }
+
+/**
+ * Ambil slug username dari link_editor (segment setelah /index.php/).
+ * Hanya alfanumerik, dash, underscore. '' bila tidak ada.
+ */
+function jurnal_username_from_link_editor(?string $link_editor): string
+{
+    $link   = (string)$link_editor;
+    $marker = '/index.php/';
+    $pos    = stripos($link, $marker);
+    if ($pos === false) return '';
+    $rest = substr($link, $pos + strlen($marker));
+    $slug = explode('/', $rest)[0] ?? '';
+    return preg_replace('/[^A-Za-z0-9_-]/', '', trim($slug));
+}
+
+/**
+ * Buat username akun jurnal yang valid: min 4 karakter & unik.
+ * Slug dari link_editor; bila < 4 char ditambah jurnal_id, lalu di-pad.
+ * Tabrakan username diselesaikan dengan suffix angka.
+ */
+function generate_jurnal_username(int $jurnal_id, ?string $link_editor): string
+{
+    $base = jurnal_username_from_link_editor($link_editor);
+    if ($base === '') $base = 'jurnal';
+    if (strlen($base) < 4) $base .= (string)$jurnal_id;   // cth: JOS -> JOS12
+    if (strlen($base) < 4) $base = str_pad($base, 4, '0');
+    if (strlen($base) > 50) $base = substr($base, 0, 50);
+
+    $username = $base;
+    $n = 1;
+    while (fetch_one(
+        "SELECT id FROM jurnal_accounts WHERE username=? AND jurnal_id<>? LIMIT 1",
+        'si', [$username, $jurnal_id]
+    )) {
+        $suffix   = (string)$n;
+        $username = substr($base, 0, 50 - strlen($suffix)) . $suffix;
+        $n++;
+    }
+    return $username;
+}
+
+/**
+ * Pastikan jurnal punya akun login dengan username valid (min 4 char).
+ * - Belum ada akun  -> INSERT (password_hash = bcrypt token bila ada).
+ * - Akun ada & username < 4 char -> rename ke username valid.
+ * - Akun ada & username valid     -> biarkan.
+ * Return: ['action'=>'created|renamed|kept', 'username'=>...].
+ */
+function ensure_jurnal_account(int $jurnal_id, ?string $link_editor, ?string $token = null): array
+{
+    $existing = fetch_one(
+        "SELECT id, username FROM jurnal_accounts WHERE jurnal_id=? LIMIT 1",
+        'i', [$jurnal_id]
+    );
+
+    if ($existing) {
+        $cur = trim((string)$existing['username']);
+        if (strlen($cur) < 4) {
+            $u = generate_jurnal_username($jurnal_id, $link_editor);
+            exec_q("UPDATE jurnal_accounts SET username=? WHERE id=?", 'si', [$u, (int)$existing['id']]);
+            return ['action' => 'renamed', 'username' => $u];
+        }
+        return ['action' => 'kept', 'username' => $cur];
+    }
+
+    $u    = generate_jurnal_username($jurnal_id, $link_editor);
+    $tok  = (string)$token;
+    if ($tok !== '') {
+        $hash = password_hash($tok, PASSWORD_BCRYPT);
+        exec_q("INSERT INTO jurnal_accounts (jurnal_id, username, password_hash) VALUES (?,?,?)",
+               'iss', [$jurnal_id, $u, $hash]);
+    } else {
+        exec_q("INSERT INTO jurnal_accounts (jurnal_id, username) VALUES (?,?)",
+               'is', [$jurnal_id, $u]);
+    }
+    return ['action' => 'created', 'username' => $u];
+}

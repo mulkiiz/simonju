@@ -100,6 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                'isss', [$jid, $jb['editor_nama'], $jb['editor_email'],
                                         $jb['editor_no_hp']]);
                     }
+                    // Pastikan akun login jurnal ada & username min 4 char
+                    ensure_jurnal_account($jid, $jb['link_editor'], $existing['konfirmasi_token'] ?? null);
                     exec_q(
                         "UPDATE jurnal_baru SET status='approved', reviewed_at=NOW(),
                          reviewed_by=?, admin_note=?, jurnal_id=? WHERE id=?",
@@ -150,6 +152,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         exec_q("INSERT INTO editor (jurnal_id, nama, email, no_hp) VALUES (?,?,?,?)",
                                'isss', [$jid, $jb['editor_nama'], $jb['editor_email'],
                                         $jb['editor_no_hp']]);
+                        // Buat akun login jurnal (username min 4 char, password = token)
+                        ensure_jurnal_account($jid, $jb['link_editor'], $token);
                         exec_q(
                             "UPDATE jurnal_baru SET status='approved', reviewed_at=NOW(),
                              reviewed_by=?, admin_note=?, jurnal_id=? WHERE id=?",
