@@ -212,24 +212,151 @@ function count_articles_on_issue_page($issue_url) {
 }
 
 /**
+ * Susun endpoint OAI-PMH + setSpec dari url_archive.
+ * OJS: <origin>/index.php/<context>/oai , set = <context>.
+ * Mendukung URL clean (tanpa index.php). Return ['', ''] bila gagal.
+ */
+function oai_endpoint_from_archive($url_archive) {
+    $url = trim((string)$url_archive);
+    if ($url === '') return ['', ''];
+    $p = parse_url($url);
+    if (!$p || empty($p['host'])) return ['', ''];
+
+    $scheme = $p['scheme'] ?? 'https';
+    $host   = $p['host'];
+    $port   = isset($p['port']) ? ':' . $p['port'] : '';
+    $origin = "{$scheme}://{$host}{$port}";
+    $path   = $p['path'] ?? '';
+
+    $hasIndexPhp = false;
+    $context = '';
+    if (preg_match('~/index\.php/([^/]+)~', $path, $m)) {
+        $hasIndexPhp = true;
+        $context = $m[1];
+    } else {
+        $segs = array_values(array_filter(explode('/', $path), 'strlen'));
+        if ($segs) $context = $segs[0];
+    }
+
+    // Hindari segmen reserved OJS sebagai context
+    $reserved = ['issue','article','about','search','login','user','oai','gateway','index'];
+    if ($context !== '' && in_array(strtolower($context), $reserved, true)) $context = '';
+
+    if ($context !== '') {
+        $oai = $hasIndexPhp ? "{$origin}/index.php/{$context}/oai" : "{$origin}/{$context}/oai";
+        return [$oai, $context];
+    }
+    // Single-journal / tak diketahui: OAI site-level tanpa set
+    $oai = $hasIndexPhp ? "{$origin}/index.php/index/oai" : "{$origin}/index/oai";
+    return [$oai, ''];
+}
+
+/**
+ * Crawl generic via OAI-PMH (template-independent).
+ * Ambil semua record artikel (ListRecords + resumptionToken), kelompokkan
+ * jadi terbitan berdasarkan Vol/No/Tahun dari dc:source. Return array issues
+ * (format sama dgn parse_ojs_archive) atau [] bila gagal/kosong.
+ */
+function crawl_via_oai($url_archive) {
+    [$oai, $set] = oai_endpoint_from_archive($url_archive);
+    if ($oai === '') return [];
+
+    $groups = [];   // key "v|n|y" => issue record
+    $token  = null;
+    $page   = 0;
+    $maxPages = 50; // batas aman (50 x ~100 = 5000 artikel)
+
+    do {
+        $page++;
+        if ($token !== null) {
+            $req = $oai . '?verb=ListRecords&resumptionToken=' . urlencode($token);
+        } else {
+            $req = $oai . '?verb=ListRecords&metadataPrefix=oai_dc'
+                 . ($set !== '' ? '&set=' . urlencode($set) : '');
+        }
+
+        $resp = http_get($req);
+        if ($resp['code'] !== 200 || !$resp['body']) break;
+
+        $xml = @simplexml_load_string($resp['body']);
+        if (!$xml) break;
+        $xml->registerXPathNamespace('o',  'http://www.openarchives.org/OAI/2.0/');
+        $xml->registerXPathNamespace('dc', 'http://purl.org/dc/elements/1.1/');
+
+        $records = $xml->xpath('//o:record');
+        if (!$records) break;   // error / noRecordsMatch -> biarkan fallback
+
+        foreach ($records as $rec) {
+            $rec->registerXPathNamespace('o',  'http://www.openarchives.org/OAI/2.0/');
+            $rec->registerXPathNamespace('dc', 'http://purl.org/dc/elements/1.1/');
+
+            $hdr = $rec->xpath('o:header')[0] ?? null;
+            if ($hdr && (string)$hdr['status'] === 'deleted') continue;
+
+            $srcNodes = $rec->xpath('.//dc:source');
+            $source   = $srcNodes ? trim((string)$srcNodes[0]) : '';
+            $dtNodes  = $rec->xpath('.//dc:date');
+            $date     = $dtNodes ? trim((string)$dtNodes[0]) : '';
+
+            $vn    = extract_vol_no_year($source);
+            $tahun = $vn['tahun'];
+            if ($tahun === '' && preg_match('/\b(19|20)\d{2}\b/', $date, $mm)) $tahun = $mm[0];
+
+            // Lewati record tanpa identitas terbitan sama sekali
+            if ($vn['volume'] === '' && $vn['nomor'] === '' && $tahun === '') continue;
+
+            $key = $vn['volume'] . '|' . $vn['nomor'] . '|' . $tahun;
+            if (!isset($groups[$key])) {
+                $label = trim(sprintf('Vol %s No %s (%s)', $vn['volume'], $vn['nomor'], $tahun));
+                $groups[$key] = [
+                    'raw_title'      => $label,
+                    'volume'         => $vn['volume'],
+                    'nomor'          => $vn['nomor'],
+                    'tahun'          => $tahun,
+                    'pubdate'        => '',
+                    'jumlah_artikel' => 0,
+                    'issue_url'      => '',
+                ];
+            }
+            $groups[$key]['jumlah_artikel']++;
+        }
+
+        $rtNodes = $xml->xpath('//o:resumptionToken');
+        $tokenStr = $rtNodes ? trim((string)$rtNodes[0]) : '';
+        $token = ($tokenStr !== '') ? $tokenStr : null;
+    } while ($token !== null && $page < $maxPages);
+
+    return array_values($groups);
+}
+
+/**
  * Crawl satu jurnal. Return ringkasan.
+ * Sumber utama: OAI-PMH (generic). Fallback: HTML scraping (template OJS).
  */
 function crawl_jurnal($jurnal_id, $trigger = 'manual', $deep = true) {
     $j = fetch_one("SELECT * FROM jurnals WHERE id=?", 'i', [$jurnal_id]);
     if (!$j) return ['ok' => false, 'message' => 'Jurnal tidak ditemukan'];
 
     $url = $j['url_archive'];
-    $resp = http_get($url);
 
-    if ($resp['code'] !== 200 || !$resp['body']) {
-        $msg = "HTTP {$resp['code']} | {$resp['error']}";
-        log_crawl($jurnal_id, $trigger, 'failed', 0, 0, $msg);
-        exec_q("UPDATE jurnals SET last_crawled_at=NOW(), last_crawl_status='failed' WHERE id=?",
-            'i', [$jurnal_id]);
-        return ['ok' => false, 'message' => $msg, 'found' => 0, 'new' => 0];
+    // 1) Generic via OAI-PMH
+    $method = 'oai';
+    $issues = crawl_via_oai($url);
+
+    // 2) Fallback HTML scraping bila OAI kosong/gagal
+    if (empty($issues)) {
+        $method = 'html';
+        $resp = http_get($url);
+        if ($resp['code'] !== 200 || !$resp['body']) {
+            $msg = "HTTP {$resp['code']} | {$resp['error']}";
+            log_crawl($jurnal_id, $trigger, 'failed', 0, 0, $msg);
+            exec_q("UPDATE jurnals SET last_crawled_at=NOW(), last_crawl_status='failed' WHERE id=?",
+                'i', [$jurnal_id]);
+            return ['ok' => false, 'message' => $msg, 'found' => 0, 'new' => 0];
+        }
+        $issues = parse_ojs_archive($resp['body'], $url);
     }
 
-    $issues = parse_ojs_archive($resp['body'], $url);
     $found = count($issues);
     $new = 0;
 
@@ -258,11 +385,23 @@ function crawl_jurnal($jurnal_id, $trigger = 'manual', $deep = true) {
 
     $status = $found > 0 ? 'success' : 'partial';
     log_crawl($jurnal_id, $trigger, $status, $found, $new,
-        "Found {$found} issues, {$new} new");
+        "[{$method}] Found {$found} issues, {$new} new");
     exec_q("UPDATE jurnals SET last_crawled_at=NOW(), last_crawl_status=? WHERE id=?",
         'si', [$status, $jurnal_id]);
 
-    return ['ok' => true, 'found' => $found, 'new' => $new, 'status' => $status];
+    return ['ok' => true, 'found' => $found, 'new' => $new, 'status' => $status, 'method' => $method];
+}
+
+/**
+ * Wrapper untuk tombol "Crawl Sekarang" sisi jurnal.
+ * Return [statusString, pesan] sesuai yang dibaca jurnal/crawl_run.php.
+ */
+function crawl_single($j) {
+    $res = crawl_jurnal((int)$j['id'], 'manual', true);
+    if (!empty($res['ok'])) {
+        return ['ok', "Berhasil. Ditemukan {$res['found']} terbitan, {$res['new']} baru."];
+    }
+    return ['fail', 'Gagal: ' . ($res['message'] ?? 'unknown')];
 }
 
 function log_crawl($jurnal_id, $trigger, $status, $found, $new, $message) {
