@@ -4,19 +4,29 @@ require_once __DIR__ . '/../includes/mailer.php';
 require_admin();
 csrf_check();
 
-/* ── TEST EMAIL ─────────────────────────────────── */
+/* ── TEST EMAIL (data random) ───────────────────── */
 if (!empty($_POST['test_email'])) {
-    $subject = '[TEST] Info Login Simonju - Contoh Jurnal';
-    $body    = build_jurnal_email(
-        '[NAMA_JURNAL — TEST]',
-        'contoh_username',
-        'contoh_token_123'
-    );
+    $sample_jurnals = [
+        'Jurnal Inovasi Teknologi Pertanian',
+        'Journal of Soedirman Mathematics',
+        'Jurnal Ilmu Kelautan Tropis',
+        'Dinamika Ekonomi dan Bisnis',
+        'Jurnal Kedokteran Hewan Nusantara',
+    ];
+    $rand_nama  = $sample_jurnals[array_rand($sample_jurnals)];
+    $rand_user  = strtolower(preg_replace('/[^a-z]/i', '', explode(' ', $rand_nama)[0]))
+                . random_int(10, 99);
+    $rand_token = bin2hex(random_bytes(4));
+
+    $subject = '[TEST] Info Login Simonju - ' . $rand_nama;
+    $body    = build_jurnal_email($rand_nama, $rand_user, $rand_token);
+
     [$ok, $msg] = send_smtp_mail(
         'admiportfolio@gmail.com',
         'Test Email Admin',
         $subject,
-        $body
+        $body,
+        true
     );
     $param = $ok ? 'email_ok' : 'email_err';
     header('Location: account.php?tab=jurnal&' . $param . '=' . urlencode($msg));
@@ -62,7 +72,8 @@ $body    = build_jurnal_email(
     $to_email,
     $row['nama_editor'] ?: $row['nama_jurnal'],
     $subject,
-    $body
+    $body,
+    true
 );
 
 $param = $ok ? 'email_ok' : 'email_err';
