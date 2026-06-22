@@ -175,6 +175,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
              . urlencode('Pengajuan jurnal baru ditolak.'));
         exit;
     }
+
+    if ($act === 'cancel' && $jb['status'] === 'rejected') {
+        exec_q(
+            "UPDATE jurnal_baru SET status='pending', reviewed_at=NULL,
+             reviewed_by=NULL WHERE id=?",
+            'i', [$id]
+        );
+        header("Location: jurnal_baru_admin.php?st=pending&done=1&msg="
+             . urlencode('Penolakan dibatalkan — pengajuan kembali ke daftar review.'));
+        exit;
+    }
 }
 
 $fields = [
@@ -227,6 +238,16 @@ $existing_preview = ($st === 'pending')
   <?php if ($jb['admin_note']): ?><br><span class="muted small">Catatan admin: <?= h($jb['admin_note']) ?></span><?php endif; ?>
 <?php endif; ?>
 </p>
+
+<?php if ($st === 'rejected'): ?>
+  <form method="post" style="margin:12px 0">
+    <?= csrf_field() ?>
+    <button type="submit" name="act" value="cancel" class="btn btn-primary"
+            onclick="return confirm('Batalkan penolakan? Pengajuan kembali ke status pending dan bisa di-approve lagi.')">
+      ↩ Batalkan Penolakan (kembali ke Review)
+    </button>
+  </form>
+<?php endif; ?>
 
 <?php if ($st === 'pending'): ?>
   <?php if ($existing_preview): ?>

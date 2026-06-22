@@ -76,6 +76,16 @@ $ctotal = array_sum($cmap);
         <td class="actions">
           <a href="jurnal_baru_review.php?id=<?= (int)$r['id'] ?>"
              class="btn btn-sm btn-primary">Tinjau</a>
+          <?php if ($st === 'rejected'): ?>
+            <form method="post" action="jurnal_baru_review.php?id=<?= (int)$r['id'] ?>"
+                  style="display:inline">
+              <?= csrf_field() ?>
+              <button type="submit" name="act" value="cancel" class="btn btn-sm"
+                      onclick="return confirm('Batalkan penolakan? Pengajuan kembali ke Review.')">
+                ↩ Batalkan
+              </button>
+            </form>
+          <?php endif; ?>
         </td>
       </tr>
     <?php endforeach; ?>
