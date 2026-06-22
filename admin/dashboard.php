@@ -26,8 +26,8 @@ if ($page < 1) $page = 1;
 // Reusable SQL fragments
 // =========================================================
 $BELUM_ISSN_SQL = "
-  (j.p_issn IS NULL OR j.p_issn = '' OR LOWER(j.p_issn) LIKE '%x%')
-  AND (j.e_issn IS NULL OR j.e_issn = '' OR LOWER(j.e_issn) LIKE '%x%')
+  (j.p_issn IS NULL OR TRIM(j.p_issn) = '')
+  AND (j.e_issn IS NULL OR TRIM(j.e_issn) = '')
 ";
 
 // APC ber-bayar: kolom sudah numeric after cleanup, cek > 0
