@@ -24,8 +24,8 @@ const overlay={
   title:document.getElementById('actionTitle'),
   sub:document.getElementById('actionSubtitle'),
   tip:document.getElementById('actionTip'),
-  show(t,s,tip){this.title.textContent=t||'Sedang Memproses';this.sub.textContent=s||'Mohon tunggu.';if(tip)this.tip.textContent=tip;this.el.classList.add('visible');this.el.setAttribute('aria-hidden','false')},
-  hide(){this.el.classList.remove('visible');this.el.setAttribute('aria-hidden','true')}
+  show(t,s,tip){this.title.textContent=t||'Sedang Memproses';this.sub.textContent=s||'Mohon tunggu.';if(tip)this.tip.textContent=tip;this.el.classList.add('show');this.el.setAttribute('aria-hidden','false')},
+  hide(){this.el.classList.remove('show');this.el.setAttribute('aria-hidden','true')}
 };
 document.querySelectorAll('form[action*="crawl_run"],form[action*="scan_judol_run"]').forEach(f=>{
   f.addEventListener('submit',()=>overlay.show('Sedang Memproses','Mohon tunggu...'));
