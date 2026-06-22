@@ -42,7 +42,7 @@ $order_sql = "
       WHEN j.is_scopus = 1 THEN 1
       WHEN j.akreditasi_jenis = 'sinta' THEN 2
       WHEN (j.akreditasi_jenis IS NULL OR j.akreditasi_jenis = '' OR j.akreditasi_jenis = 'belum')
-           AND j.p_issn IS NOT NULL AND j.p_issn <> '' AND LOWER(j.p_issn) NOT LIKE '%x%' THEN 3
+           AND j.p_issn IS NOT NULL AND j.p_issn <> '' THEN 3
       ELSE 4
     END,
     CASE
@@ -321,8 +321,8 @@ function build_qs($override = []) {
       $apc_display = fmt_apc($apc_raw);
       $pissn = trim($j['p_issn'] ?? '');
       $eissn = trim($j['e_issn'] ?? '');
-      $pissn_valid = ($pissn !== '' && stripos($pissn, 'x') === false);
-      $eissn_valid = ($eissn !== '' && stripos($eissn, 'x') === false);
+      $pissn_valid = ($pissn !== '');
+      $eissn_valid = ($eissn !== '');
     ?>
       <tr>
         <td>
