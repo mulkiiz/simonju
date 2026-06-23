@@ -358,7 +358,8 @@ $upload_base = '../uploads/jurnal/';
         <?php if (!empty($j['file_cover'])): ?>
           <a href="<?= h($upload_base . $j['file_cover']) ?>" target="_blank" rel="noopener" style="display:block;line-height:0">
             <img src="<?= h($upload_base . $j['file_cover']) ?>" alt="Cover <?= h($j['nama_jurnal']) ?>"
-                 style="max-width:100%;max-height:100%;border-radius:6px;border:1px solid #eaecf0;object-fit:contain">
+                 width="250" height="350"
+                 style="width:250px;height:350px;border-radius:6px;border:1px solid #eaecf0;object-fit:cover">
           </a>
         <?php else: ?>
           <span class="muted small">Belum ada cover.</span>
