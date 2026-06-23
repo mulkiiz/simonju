@@ -65,7 +65,7 @@ function kat_row($label, $val) {
 <meta charset="utf-8">
 <title>Katalog Jurnal Ilmiah — SIMONJU</title>
 <style>
-  @page { size: A4 portrait; margin: 14mm; }
+  @page { size: A4 portrait; margin: 0; }
   * { box-sizing: border-box; }
   body { margin:0; font-family:"Segoe UI",Arial,sans-serif; color:#1e293b; background:#e2e8f0; }
 
@@ -77,10 +77,10 @@ function kat_row($label, $val) {
   .toolbar .btn.secondary { background:#334155; }
   .toolbar .muted { color:#94a3b8; font-size:13px; margin-left:auto; }
 
-  /* Halaman */
-  .page { width:210mm; min-height:297mm; background:#fff; margin:18px auto; padding:18mm 16mm 24mm;
-          box-shadow:0 4px 18px rgba(0,0,0,.18); page-break-after:always; position:relative; }
-  .page:last-child { page-break-after:auto; }
+  /* Halaman — tinggi TETAP 296mm agar identik screen & print */
+  .page { width:210mm; height:296mm; overflow:hidden; background:#fff; margin:18px auto; padding:18mm 16mm 24mm;
+          box-shadow:0 4px 18px rgba(0,0,0,.18); page-break-after:always; break-after:page; position:relative; }
+  .page:last-child { page-break-after:auto; break-after:auto; }
 
   /* Cover */
   .cover { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
@@ -146,9 +146,11 @@ function kat_row($label, $val) {
             padding-top:6px; font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; }
 
   @media print {
-    body { background:#fff; }
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    html, body { background:#fff; margin:0; padding:0; }
     .toolbar { display:none; }
-    .page { margin:0; box-shadow:none; width:auto; min-height:auto; padding:0; }
+    /* Dimensi & padding sudah tetap di .page; @page margin 0 -> padding = margin cetak. */
+    .page { margin:0; box-shadow:none; border-radius:0; }
   }
 </style>
 </head>
