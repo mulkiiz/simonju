@@ -95,10 +95,10 @@ $upload_base = '../uploads/jurnal/';
       <?= csrf_field() ?>
       <button class="btn btn-primary" type="submit"><span class="ico">&#128260;</span> Crawl Sekarang</button>
     </form>
-    <form method="post" action="scan_judol_run.php" style="display:inline" onsubmit="return confirm('Scan judol (judi online) untuk jurnal ini?');">
-      <?= csrf_field() ?>
-      <button class="btn btn-scan" type="submit">🛡️ Scan Judol</button>
-    </form>
+    <span title="Coming soon" style="display:inline-block;cursor:not-allowed">
+      <button class="btn btn-scan" type="button" disabled
+              style="opacity:.55;cursor:not-allowed;pointer-events:none">🛡️ Scan Judol</button>
+    </span>
   </div>
 </div>
 

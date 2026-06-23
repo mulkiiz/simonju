@@ -31,7 +31,6 @@ $_jnama = $_SESSION['jurnal_nama'] ?? 'Jurnal';
     <nav class="nav">
       <a href="index.php">📋 Dashboard</a>
       <a href="edit.php">✏️ Edit Data</a>
-      <a href="akun.php">🔐 Akun</a>
       <a href="../logout.php" class="logout">🚪 Keluar</a>
     </nav>
   </div>
