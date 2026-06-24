@@ -76,7 +76,10 @@ if ($filter === 'sinta') {
     // Scopus = is_scopus flag (termasuk Sinta 1)
     $where_parts[] = "j.is_scopus = 1";
 } elseif ($filter === 'belum') {
+    // Belum Akreditasi = belum akreditasi TAPI sudah punya >=1 ISSN valid.
+    // Yang belum punya ISSN sama sekali masuk tag Belum ISSN.
     $where_parts[] = "(j.akreditasi_jenis IS NULL OR j.akreditasi_jenis = '' OR j.akreditasi_jenis = 'belum')";
+    $where_parts[] = "NOT ($BELUM_ISSN_SQL)";
 } elseif ($filter === 'belum_issn') {
     $where_parts[] = $BELUM_ISSN_SQL;
 } elseif ($filter === 'apc') {
@@ -183,6 +186,15 @@ $r_issn = fetch_one("
 ", $st_types, $st_params);
 $stat_belum_issn = (int)($r_issn['n'] ?? 0);
 
+// Belum Akreditasi = belum akreditasi TAPI sudah punya ISSN valid
+$r_belum_akr = fetch_one("
+  SELECT COUNT(*) AS n FROM jurnals j
+  WHERE $base_where
+    AND (j.akreditasi_jenis IS NULL OR j.akreditasi_jenis = '' OR j.akreditasi_jenis = 'belum')
+    AND NOT ($BELUM_ISSN_SQL)
+", $st_types, $st_params);
+$stat_belum_akr = (int)($r_belum_akr['n'] ?? 0);
+
 $r_apc = fetch_one("
   SELECT COUNT(*) AS n FROM jurnals j
   WHERE $base_where AND $BER_APC_SQL
@@ -244,7 +256,7 @@ function build_qs($override = []) {
     <span class="ico">🏅</span> Sinta <span class="pill-count"><?= $stat_map['sinta'] ?></span>
   </a>
   <a href="<?= h(build_qs(['akr'=>'belum','pr'=>'','p'=>1])) ?>" class="pill <?= $filter==='belum' ? 'active' : '' ?>">
-    <span class="ico">⚪</span> Belum Akreditasi <span class="pill-count"><?= $stat_map['belum'] ?></span>
+    <span class="ico">⚪</span> Belum Akreditasi <span class="pill-count"><?= $stat_belum_akr ?></span>
   </a>
   <a href="<?= h(build_qs(['akr'=>'belum_issn','pr'=>'','p'=>1])) ?>" class="pill <?= $filter==='belum_issn' ? 'active' : '' ?>">
     <span class="ico">📄</span> Belum ISSN <span class="pill-count"><?= $stat_belum_issn ?></span>

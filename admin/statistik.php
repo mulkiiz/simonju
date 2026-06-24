@@ -51,7 +51,9 @@ $tf_issn = fetch_one("SELECT COUNT(*) AS n FROM jurnals WHERE konfirmasi_status=
 $s_scopus     = (int)($tf['scopus'] ?? 0);
 $s_sinta      = (int)($tf['sinta'] ?? 0);
 $s_akred      = (int)($tf['terakreditasi'] ?? 0);
-$s_belum_akr  = (int)($tf['belum_akr'] ?? 0);
+// Belum Akreditasi = belum akreditasi TAPI sudah punya ISSN valid
+// (yang belum punya ISSN dihitung di tag Belum ISSN, bukan di sini).
+$s_belum_akr  = (int)($tf['issn_blm_akred'] ?? 0);
 $s_issn_blm   = (int)($tf['issn_blm_akred'] ?? 0);
 $s_belum_issn = (int)($tf_issn['n'] ?? 0);
 $s_ber_apc    = (int)($tf['ber_apc'] ?? 0);
@@ -221,10 +223,6 @@ $cg_str = $cg ? implode(',', $cg) : '#eef1f5 0% 100%';
           <div class="mi-ic">💰</div>
           <div><div class="mi-num"><?= $s_ber_apc ?></div><div class="mi-lbl">Ber-APC</div></div>
         </a>
-        <div class="mini-item mi-issn" style="cursor:default">
-          <div class="mi-ic">🔖</div>
-          <div><div class="mi-num"><?= $s_issn_blm ?></div><div class="mi-lbl">Ber-ISSN, Belum Akreditasi</div></div>
-        </div>
       </div>
     </div>
 
