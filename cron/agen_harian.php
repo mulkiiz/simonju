@@ -63,6 +63,10 @@ function http_request($url, $method = 'GET', $headers = [], $body = null, $timeo
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; AgenHarian/2.0)',
     ]);
+    $caBundle = defined('CA_BUNDLE_PATH') ? CA_BUNDLE_PATH : __DIR__ . '/../includes/cacert.pem';
+    if (is_file($caBundle)) {
+        curl_setopt($ch, CURLOPT_CAINFO, $caBundle);
+    }
     if ($headers) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     if ($method === 'POST' && $body !== null) {
         curl_setopt($ch, CURLOPT_POST, true);

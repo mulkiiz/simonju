@@ -18,6 +18,12 @@ function http_get($url) {
         CURLOPT_SSL_VERIFYHOST => 2,
         CURLOPT_ENCODING       => '',
     ]);
+    // CA bundle: pakai CA_BUNDLE_PATH dari config kalau ada, fallback ke
+    // includes/cacert.pem di repo (config.php gitignored, jadi jgn gantung).
+    $caBundle = defined('CA_BUNDLE_PATH') ? CA_BUNDLE_PATH : __DIR__ . '/../includes/cacert.pem';
+    if (is_file($caBundle)) {
+        curl_setopt($ch, CURLOPT_CAINFO, $caBundle);
+    }
     $body = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err  = curl_error($ch);
