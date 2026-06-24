@@ -346,11 +346,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <button type="submit" class="btn btn-primary">Simpan</button>
     <a href="<?= $is_edit ? 'jurnal_view.php?id=' . (int)$id : 'dashboard.php' ?>" class="btn">Batal</a>
     <?php if ($is_edit): ?>
-      <button type="submit" formaction="jurnal_delete.php" class="btn btn-danger"
-              onclick="return confirm('Yakin hapus jurnal ini beserta semua data terbitannya?')">Hapus</button>
+      <button type="button" class="btn btn-danger" id="deleteJurnalBtn">🗑️ Hapus Jurnal</button>
     <?php endif; ?>
   </div>
 </form>
+
+<?php if ($is_edit): ?>
+<!-- Form delete terpisah (tak boleh nested di dalam form edit) -->
+<form id="deleteJurnalForm" method="post" action="jurnal_delete.php" style="display:none">
+  <?= csrf_field() ?>
+  <input type="hidden" name="jurnal_id" value="<?= (int)$id ?>">
+  <input type="hidden" name="confirm_name" id="deleteConfirmName" value="">
+</form>
+<script>
+(function () {
+  var btn  = document.getElementById('deleteJurnalBtn');
+  var form = document.getElementById('deleteJurnalForm');
+  var hid  = document.getElementById('deleteConfirmName');
+  if (!btn) return;
+  var nama = <?= json_encode($data['nama_jurnal'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS) ?>;
+  btn.addEventListener('click', function () {
+    var msg = 'PERINGATAN: Hapus jurnal ini PERMANEN beserta SEMUA data terkait ' +
+      '(terbitan, log crawl, log scan judol, akreditasi, konfirmasi, akun login, editor, file cover/sertifikat).\n\n' +
+      'Ketik nama jurnal persis untuk konfirmasi:\n' + nama;
+    var typed = window.prompt(msg, '');
+    if (typed === null) return;
+    if (typed.trim() !== nama.trim()) { alert('Nama tidak cocok. Hapus dibatalkan.'); return; }
+    hid.value = typed.trim();
+    form.submit();
+  });
+})();
+</script>
+<?php endif; ?>
 
 <script>
 (function () {

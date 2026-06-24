@@ -61,12 +61,31 @@ $total_issues   = count($terbitan);
 $total_articles = 0;
 foreach ($by_year as $y => $v) $total_articles += $v['articles'];
 
-// Untuk chart: max value per axis (skala bar)
-$max_issues = 0;
-$max_articles = 0;
-foreach ($by_year as $v) {
-    if ($v['issues']   > $max_issues)   $max_issues   = $v['issues'];
-    if ($v['articles'] > $max_articles) $max_articles = $v['articles'];
+// Chart: tiap nomor/issue terbitan = 1 bar (dikelompokkan per tahun).
+// Tinggi bar = jumlah artikel issue itu. Tahun dgn 2 nomor -> 2 bar.
+$issues_by_year = [];
+foreach ($terbitan as $t) {
+    $y = $t['tahun'] !== '' ? $t['tahun'] : 'N/A';
+    $issues_by_year[$y][] = [
+        'vol'   => trim((string)$t['volume']),
+        'nomor' => trim((string)$t['nomor']),
+        'art'   => (int)$t['jumlah_artikel'],
+    ];
+}
+// Urutkan issue dalam tiap tahun: volume lalu nomor (numerik)
+foreach ($issues_by_year as $y => &$list) {
+    usort($list, function($a, $b) {
+        $va = (int)$a['vol']; $vb = (int)$b['vol'];
+        if ($va !== $vb) return $va <=> $vb;
+        return (int)$a['nomor'] <=> (int)$b['nomor'];
+    });
+}
+unset($list);
+
+// Skala bar: max artikel per issue (lintas semua tahun)
+$max_issue_articles = 0;
+foreach ($issues_by_year as $list) {
+    foreach ($list as $it) if ($it['art'] > $max_issue_articles) $max_issue_articles = $it['art'];
 }
 ?>
 <div class="page-head">
@@ -88,11 +107,45 @@ foreach ($by_year as $v) {
       <input type="hidden" name="jurnal_id" value="<?= (int)$j['id'] ?>">
       <button class="btn btn-scan" type="submit">🛡️ Scan Judol</button>
     </form>
+    <form id="deleteJurnalForm" method="post" action="jurnal_delete.php" style="display:inline">
+      <?= csrf_field() ?>
+      <input type="hidden" name="jurnal_id" value="<?= (int)$j['id'] ?>">
+      <input type="hidden" name="confirm_name" id="deleteConfirmName" value="">
+      <button class="btn btn-danger" type="button" id="deleteJurnalBtn">🗑️ Hapus Jurnal</button>
+    </form>
   </div>
 </div>
 
+<script>
+(function () {
+  var btn  = document.getElementById('deleteJurnalBtn');
+  var form = document.getElementById('deleteJurnalForm');
+  var hid  = document.getElementById('deleteConfirmName');
+  if (!btn) return;
+  var nama = <?= json_encode($j['nama_jurnal'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS) ?>;
+  btn.addEventListener('click', function () {
+    var msg = 'PERINGATAN: Hapus jurnal ini PERMANEN beserta SEMUA data terkait ' +
+      '(terbitan, log crawl, log scan judol, akreditasi, konfirmasi, akun login, editor, file cover/sertifikat).\n\n' +
+      'Ketik nama jurnal persis untuk konfirmasi:\n' + nama;
+    var typed = window.prompt(msg, '');
+    if (typed === null) return;            // batal
+    if (typed.trim() !== nama.trim()) {
+      alert('Nama tidak cocok. Hapus dibatalkan.');
+      return;
+    }
+    hid.value = typed.trim();
+    form.submit();
+  });
+})();
+</script>
+
 <?php if (isset($_GET['saved'])): ?>
   <div class="alert alert-info">Data tersimpan.</div>
+<?php endif; ?>
+<?php if (isset($_GET['deleted'])): ?>
+  <div class="alert alert-<?= $_GET['deleted']==='ok'?'info':'error' ?>">
+    <?= h($_GET['msg'] ?? 'Selesai.') ?>
+  </div>
 <?php endif; ?>
 <?php if (isset($_GET['crawled'])): ?>
   <?php $cs = $_GET['crawled']; ?>
@@ -283,36 +336,40 @@ foreach ($by_year as $v) {
 
   <div class="chart-card">
     <div class="chart-legend">
-      <span class="legend-item"><span class="legend-swatch sw-issues"></span> Jumlah Issue</span>
-      <span class="legend-item"><span class="legend-swatch sw-articles"></span> Jumlah Artikel</span>
+      <span class="legend-item"><span class="legend-swatch sw-articles"></span> Jumlah artikel per nomor terbit</span>
     </div>
 
+    <?php
+      // Palet warna konsisten; urutan ke-n dalam tiap tahun pakai warna ke-n.
+      // 2 bar -> biru,hijau ; 3 bar -> biru,hijau,oranye ; dst. Reset tiap tahun.
+      $palette = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4',
+                  '#ec4899','#84cc16'];
+    ?>
     <div class="bar-chart" id="barChart">
       <?php foreach ($years_sorted as $y):
-        $iss = $by_year[$y]['issues'];
-        $art = $by_year[$y]['articles'];
-        // tinggi bar dalam persen relatif terhadap max masing-masing axis
-        $h_iss = $max_issues   > 0 ? round($iss / $max_issues   * 100) : 0;
-        $h_art = $max_articles > 0 ? round($art / $max_articles * 100) : 0;
+        $list = $issues_by_year[$y];
       ?>
       <div class="bar-group" data-year="<?= h($y) ?>" role="button" tabindex="0"
            title="Klik untuk filter tahun <?= h($y) ?>">
         <div class="bars">
-          <div class="bar bar-issues"   style="height: <?= $h_iss ?>%"
-               data-value="<?= $iss ?>" title="Issue: <?= $iss ?>">
-            <span class="bar-label"><?= $iss ?></span>
+          <?php foreach ($list as $i => $it):
+            $art = $it['art'];
+            $h_art = $max_issue_articles > 0 ? round($art / $max_issue_articles * 100) : 0;
+            $color = $palette[$i % count($palette)];
+            $titleTxt = 'Vol ' . ($it['vol'] !== '' ? $it['vol'] : '?') . ' No ' . ($it['nomor'] !== '' ? $it['nomor'] : '?') . ' · ' . $art . ' artikel';
+          ?>
+          <div class="bar" style="height: <?= $h_art ?>%;background:<?= $color ?>;border-color:<?= $color ?>"
+               data-value="<?= $art ?>" title="<?= h($titleTxt) ?>">
+            <span class="bar-label"><?= (int)$art ?></span>
           </div>
-          <div class="bar bar-articles" style="height: <?= $h_art ?>%"
-               data-value="<?= $art ?>" title="Artikel: <?= $art ?>">
-            <span class="bar-label"><?= $art ?></span>
-          </div>
+          <?php endforeach; ?>
         </div>
         <div class="bar-year"><?= h($y) ?></div>
       </div>
       <?php endforeach; ?>
     </div>
 
-    <p class="muted small chart-hint">Klik bar / tahun pada grafik untuk filter, atau gunakan dropdown di atas.</p>
+    <p class="muted small chart-hint">Tiap bar = 1 nomor terbit (Vol·No). Klik tahun pada grafik untuk filter tabel, atau gunakan dropdown di atas.</p>
   </div>
 </section>
 

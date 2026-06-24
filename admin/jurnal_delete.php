@@ -2,13 +2,82 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_admin();
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: dashboard.php'); exit;
-}
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') { header('Location: dashboard.php'); exit; }
 csrf_check();
-$id = (int)($_POST['id'] ?? 0);
-if ($id) {
-    exec_q("DELETE FROM jurnals WHERE id=?", 'i', [$id]);
+
+// Terima jurnal_id (utama) atau id (kompat lama)
+$jid = (int)($_POST['jurnal_id'] ?? $_POST['id'] ?? 0);
+if (!$jid) { header('Location: dashboard.php?deleted=fail&msg=' . urlencode('ID jurnal tidak valid.')); exit; }
+
+$j = fetch_one("SELECT id, nama_jurnal, file_cover, file_sertifikat FROM jurnals WHERE id=?", 'i', [$jid]);
+if (!$j) { header('Location: dashboard.php?deleted=fail&msg=' . urlencode('Jurnal tidak ditemukan (mungkin sudah dihapus).')); exit; }
+
+// Safety: admin harus ketik nama jurnal persis untuk konfirmasi
+$confirm = trim($_POST['confirm_name'] ?? '');
+if ($confirm === '' || $confirm !== trim($j['nama_jurnal'])) {
+    header('Location: jurnal_view.php?id=' . $jid . '&deleted=fail&msg=' . urlencode('Nama konfirmasi tidak cocok. Hapus dibatalkan.'));
+    exit;
 }
-header('Location: dashboard.php');
+
+$conn = db();
+$conn->begin_transaction();
+
+try {
+    // Tabel anak yang punya kolom jurnal_id — hapus dulu (FK & non-FK).
+    // editor_bak & jurnal_accounts_bak ikut agar FK tidak memblokir & tak ada orphan.
+    $child_tables = [
+        'terbitan',
+        'judol_scan_log',
+        'akreditasi_periode',
+        'konfirmasi',
+        'jurnal_accounts',
+        'editor_bak',
+        'crawl_log',
+        'editor',
+        'jurnal_accounts_bak',
+    ];
+    foreach ($child_tables as $tbl) {
+        $stmt = $conn->prepare("DELETE FROM `{$tbl}` WHERE jurnal_id=?");
+        if (!$stmt) throw new Exception("Prepare gagal ({$tbl}): " . $conn->error);
+        $stmt->bind_param('i', $jid);
+        if (!$stmt->execute()) throw new Exception("Delete {$tbl} gagal: " . $stmt->error);
+        $stmt->close();
+    }
+
+    // jurnal_baru: simpan histori request, lepas tautannya saja
+    $stmt = $conn->prepare("UPDATE jurnal_baru SET jurnal_id=NULL WHERE jurnal_id=?");
+    if (!$stmt) throw new Exception("Prepare gagal (jurnal_baru): " . $conn->error);
+    $stmt->bind_param('i', $jid);
+    if (!$stmt->execute()) throw new Exception("Update jurnal_baru gagal: " . $stmt->error);
+    $stmt->close();
+
+    // Induk
+    $stmt = $conn->prepare("DELETE FROM jurnals WHERE id=?");
+    if (!$stmt) throw new Exception("Prepare gagal (jurnals): " . $conn->error);
+    $stmt->bind_param('i', $jid);
+    if (!$stmt->execute()) throw new Exception("Delete jurnals gagal: " . $stmt->error);
+    $deleted = $stmt->affected_rows;
+    $stmt->close();
+
+    if ($deleted < 1) throw new Exception("Baris jurnal tidak terhapus.");
+
+    $conn->commit();
+} catch (Exception $e) {
+    $conn->rollback();
+    error_log('jurnal_delete failed (id=' . $jid . '): ' . $e->getMessage());
+    header('Location: jurnal_view.php?id=' . $jid . '&deleted=fail&msg=' . urlencode('Gagal hapus: ' . $e->getMessage()));
+    exit;
+}
+
+// Best-effort: hapus file cover & sertifikat di disk (setelah commit)
+$updir = __DIR__ . '/../uploads/jurnal/';
+foreach (['file_cover', 'file_sertifikat'] as $col) {
+    $fn = trim((string)($j[$col] ?? ''));
+    if ($fn === '') continue;
+    $path = $updir . basename($fn); // basename: cegah path traversal
+    if (is_file($path)) @unlink($path);
+}
+
+$nama = $j['nama_jurnal'];
+header('Location: dashboard.php?deleted=ok&msg=' . urlencode("Jurnal \"{$nama}\" (id {$jid}) beserta semua data terkait dihapus."));
 exit;

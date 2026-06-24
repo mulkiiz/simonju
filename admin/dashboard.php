@@ -211,6 +211,11 @@ function build_qs($override = []) {
     return $merged ? ('?' . http_build_query($merged)) : '?';
 }
 ?>
+<?php if (isset($_GET['deleted'])): ?>
+  <div class="alert alert-<?= $_GET['deleted']==='ok'?'info':'error' ?>">
+    <?= h($_GET['msg'] ?? 'Selesai.') ?>
+  </div>
+<?php endif; ?>
 <div class="page-head">
   <h1>Daftar Jurnal</h1>
   <div class="page-head-actions">
