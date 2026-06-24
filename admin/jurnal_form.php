@@ -179,6 +179,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  $data['link_gscholar'], $data['link_garuda'], $data['link_editor'], $data['link_sinta']]
             );
             $jid = (int)$r['insert_id'];
+            // Jurnal baru via admin: pastikan akun login dibuat juga,
+            // agar tidak ada jurnal tanpa akun (konsisten di menu Akun).
+            if (function_exists('ensure_jurnal_account')) {
+                ensure_jurnal_account($jid, $data['link_editor'] ?: null);
+            }
         }
 
         // --- Upsert editor (tabel terpisah) ---
