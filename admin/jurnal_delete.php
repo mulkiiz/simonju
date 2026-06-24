@@ -23,20 +23,24 @@ $conn = db();
 $conn->begin_transaction();
 
 try {
-    // Tabel anak yang punya kolom jurnal_id — hapus dulu (FK & non-FK).
-    // editor_bak & jurnal_accounts_bak ikut agar FK tidak memblokir & tak ada orphan.
-    $child_tables = [
-        'terbitan',
-        'judol_scan_log',
-        'akreditasi_periode',
-        'konfirmasi',
-        'jurnal_accounts',
-        'editor_bak',
-        'crawl_log',
-        'editor',
-        'jurnal_accounts_bak',
-    ];
+    // Tabel anak = semua tabel di DB ini yang punya kolom jurnal_id,
+    // kecuali jurnals (induk) & jurnal_baru (di-NULL-kan, bukan dihapus).
+    // Diambil dinamis agar tahan beda skema antar server (mis. tabel
+    // *_bak yang hanya ada di lokal).
+    $child_tables = array_column(
+        fetch_all(
+            "SELECT TABLE_NAME AS t FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = ? AND COLUMN_NAME = 'jurnal_id'
+                AND TABLE_NAME NOT IN ('jurnals','jurnal_baru')",
+            's', [DB_NAME]
+        ),
+        't'
+    );
     foreach ($child_tables as $tbl) {
+        // Validasi nama tabel (whitelist karakter) sebelum interpolasi
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $tbl)) {
+            throw new Exception("Nama tabel tidak valid: {$tbl}");
+        }
         $stmt = $conn->prepare("DELETE FROM `{$tbl}` WHERE jurnal_id=?");
         if (!$stmt) throw new Exception("Prepare gagal ({$tbl}): " . $conn->error);
         $stmt->bind_param('i', $jid);
