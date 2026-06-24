@@ -357,15 +357,15 @@ function build_qs($override = []) {
           <?php
             $sinta_ok  = ($aj === 'sinta' && $ap !== '');
             $scopus_ok = ($is_scopus && $sq !== '');
+            // Warna badge sinta & scopus diseragamkan = warna 'Sinta 6'.
             if ($sinta_ok):
-              $cls = 'akr-sinta-' . preg_replace('/[^0-9]/', '', $ap);
           ?>
-            <span class="akr-badge <?= h($cls) ?>"><?= h($ap) ?></span>
+            <span class="akr-badge akr-sinta-6"><?= h($ap) ?></span>
           <?php endif; ?>
           <?php if ($scopus_ok): ?>
-            <span class="akr-badge akr-scopus-<?= h(strtolower($sq)) ?>" style="font-size:.65rem;padding:2px 5px;<?= $sinta_ok ? 'margin-left:3px' : '' ?>">Scopus <?= h($sq) ?></span>
+            <span class="akr-badge akr-scopus-blue" style="font-size:.65rem;padding:2px 5px;<?= $sinta_ok ? 'margin-left:3px' : '' ?>">Scopus <?= h($sq) ?></span>
           <?php elseif ($is_scopus): ?>
-            <span class="akr-badge akr-scopus-q1" style="font-size:.65rem;padding:2px 5px;<?= $sinta_ok ? 'margin-left:3px' : '' ?>">Scopus</span>
+            <span class="akr-badge akr-scopus-blue" style="font-size:.65rem;padding:2px 5px;<?= $sinta_ok ? 'margin-left:3px' : '' ?>">Scopus</span>
           <?php endif; ?>
           <?php if (!$sinta_ok && !$is_scopus): ?>
             <span class="akr-badge akr-belum">Belum</span>
