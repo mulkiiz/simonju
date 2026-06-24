@@ -43,16 +43,23 @@ function kat_apc($v) {
     return $v;
 }
 function kat_akreditasi($r) {
+    // Sinta & Scopus independen; tampilkan keduanya bila berlaku.
+    $parts = [];
+    $cls = 'belum';
+    if (($r['akreditasi_jenis'] ?? '') === 'sinta') {
+        $p = trim((string)$r['akreditasi_peringkat']);
+        if ($p !== '') {
+            $parts[] = $p;
+            $cls = 's' . preg_replace('/[^0-9]/', '', $p);
+        }
+    }
     if ((int)$r['is_scopus'] === 1) {
-        $p = trim((string)$r['akreditasi_peringkat']);
-        return ['Scopus' . ($p !== '' ? " {$p}" : ''), 'sc'];
+        $q = trim((string)($r['scopus_q'] ?? ''));
+        $parts[] = 'Scopus' . ($q !== '' ? " {$q}" : '');
+        $cls = 'sc';
     }
-    if (($r['akreditasi_jenis'] ?? '') === 'sinta' && trim((string)$r['akreditasi_peringkat']) !== '') {
-        $p = trim((string)$r['akreditasi_peringkat']);
-        $n = preg_replace('/[^0-9]/', '', $p);
-        return [$p, 's' . $n];
-    }
-    return ['Belum Terakreditasi', 'belum'];
+    if (!$parts) return ['Belum Terakreditasi', 'belum'];
+    return [implode(' · ', $parts), $cls];
 }
 function kat_row($label, $val) {
     $val = trim((string)$val);

@@ -68,15 +68,15 @@ $sinta_rows = fetch_all(
 $sinta_map = [];
 foreach ($sinta_rows as $r) $sinta_map[trim($r['p'])] = (int)$r['n'];
 
-// Scopus breakdown (terkonfirmasi, is_scopus=1, peringkat Q1-Q4)
+// Scopus breakdown (terkonfirmasi, is_scopus=1, kuartil scopus_q Q1-Q4)
 $scopus_rows = fetch_all(
-    "SELECT akreditasi_peringkat AS p, COUNT(*) AS n
+    "SELECT scopus_q AS p, COUNT(*) AS n
        FROM jurnals
       WHERE konfirmasi_status='terkonfirmasi'
         AND is_scopus = 1
-        AND akreditasi_peringkat IN ('Q1','Q2','Q3','Q4')
-      GROUP BY akreditasi_peringkat
-      ORDER BY akreditasi_peringkat"
+        AND scopus_q IN ('Q1','Q2','Q3','Q4')
+      GROUP BY scopus_q
+      ORDER BY scopus_q"
 ) ?: [];
 $scopus_map = [];
 foreach ($scopus_rows as $r) $scopus_map[trim($r['p'])] = (int)$r['n'];

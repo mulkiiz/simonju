@@ -82,7 +82,12 @@ if ($filter === 'sinta') {
 }
 
 if ($pr !== '') {
-    $where_parts[] = "j.akreditasi_peringkat = ?";
+    // Sub-filter peringkat: scopus pakai kolom scopus_q, lainnya akreditasi_peringkat
+    if ($filter === 'scopus') {
+        $where_parts[] = "j.scopus_q = ?";
+    } else {
+        $where_parts[] = "j.akreditasi_peringkat = ?";
+    }
     $types .= 's';
     $params[] = $pr;
 }
@@ -323,6 +328,7 @@ function build_qs($override = []) {
       $aj  = $j['akreditasi_jenis'] ?? 'belum';
       $ap  = $j['akreditasi_peringkat'] ?? '';
       $is_scopus = (int)($j['is_scopus'] ?? 0);
+      $sq  = $j['scopus_q'] ?? '';
       $apc_raw = trim($j['apc'] ?? '');
       $apc_display = fmt_apc($apc_raw);
       $pissn = trim($j['p_issn'] ?? '');
@@ -336,20 +342,20 @@ function build_qs($override = []) {
           <div class="muted small"><?= h($j['url_archive']) ?></div>
         </td>
         <td>
-          <?php if ($aj === 'sinta' && $ap !== ''):
-            $cls = 'akr-sinta-' . preg_replace('/[^0-9]/', '', $ap);
+          <?php
+            $sinta_ok  = ($aj === 'sinta' && $ap !== '');
+            $scopus_ok = ($is_scopus && $sq !== '');
+            if ($sinta_ok):
+              $cls = 'akr-sinta-' . preg_replace('/[^0-9]/', '', $ap);
           ?>
             <span class="akr-badge <?= h($cls) ?>"><?= h($ap) ?></span>
-            <?php if ($is_scopus): ?>
-              <span class="akr-badge akr-scopus-q1" style="font-size:.65rem;padding:2px 5px;margin-top:2px">Scopus</span>
-            <?php endif; ?>
-          <?php elseif ($aj === 'scopus' && $ap !== ''):
-            $cls = 'akr-scopus-' . strtolower($ap);
-          ?>
-            <span class="akr-badge <?= h($cls) ?>">Scopus <?= h($ap) ?></span>
+          <?php endif; ?>
+          <?php if ($scopus_ok): ?>
+            <span class="akr-badge akr-scopus-<?= h(strtolower($sq)) ?>" style="font-size:.65rem;padding:2px 5px;<?= $sinta_ok ? 'margin-left:3px' : '' ?>">Scopus <?= h($sq) ?></span>
           <?php elseif ($is_scopus): ?>
-            <span class="akr-badge akr-scopus-q1">Scopus</span>
-          <?php else: ?>
+            <span class="akr-badge akr-scopus-q1" style="font-size:.65rem;padding:2px 5px;<?= $sinta_ok ? 'margin-left:3px' : '' ?>">Scopus</span>
+          <?php endif; ?>
+          <?php if (!$sinta_ok && !$is_scopus): ?>
             <span class="akr-badge akr-belum">Belum</span>
           <?php endif; ?>
         </td>

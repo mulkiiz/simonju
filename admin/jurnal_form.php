@@ -33,6 +33,8 @@ $data = [
     'akreditasi_peringkat' => $row['akreditasi_peringkat'] ?? '',
     'akreditasi_url'       => $row['akreditasi_url']       ?? '',
     'is_scopus'            => (int)($row['is_scopus']      ?? 0),
+    'scopus_q'             => $row['scopus_q']             ?? '',
+    'scopus_url'           => $row['scopus_url']           ?? '',
     'link_gscholar'        => $row['link_gscholar']        ?? '',
     'link_garuda'          => $row['link_garuda']          ?? '',
     'link_editor'          => $row['link_editor']          ?? '',
@@ -77,12 +79,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Email editor tidak valid.';
     }
 
-    // --- Validasi akreditasi ---
-    $valid_jenis = ['sinta','scopus','belum'];
-    if (!in_array($data['akreditasi_jenis'], $valid_jenis, true)) {
-        $errors[] = 'Jenis akreditasi tidak valid.';
+    // --- Akreditasi: dua dimensi INDEPENDEN (Sinta & Scopus) ---
+    $sinta_on    = !empty($_POST['sinta_on']);
+    $sinta_level = trim($_POST['sinta_level'] ?? '');
+    $sinta_url   = trim($_POST['sinta_url'] ?? '');
+    $scopus_on   = !empty($_POST['is_scopus']);
+    $scopus_q    = trim($_POST['scopus_q'] ?? '');
+    $scopus_url  = trim($_POST['scopus_url'] ?? '');
+
+    // Sinta -> akreditasi_jenis/peringkat/url (kolom lama, dipakai dashboard)
+    if ($sinta_on) {
+        $data['akreditasi_jenis']     = 'sinta';
+        $data['akreditasi_peringkat'] = $sinta_level;
+        $data['akreditasi_url']       = $sinta_url;
+    } else {
+        $data['akreditasi_jenis']     = 'belum';
+        $data['akreditasi_peringkat'] = '';
+        $data['akreditasi_url']       = '';
     }
-    if ($data['akreditasi_jenis'] === 'sinta') {
+    // Scopus -> is_scopus + scopus_q + scopus_url (kolom terpisah)
+    $data['is_scopus']  = $scopus_on ? 1 : 0;
+    $data['scopus_q']   = $scopus_on ? $scopus_q : '';
+    $data['scopus_url'] = $scopus_on ? $scopus_url : '';
+
+    // Validasi Sinta
+    if ($sinta_on) {
         $valid_sinta = ['Sinta 1','Sinta 2','Sinta 3','Sinta 4','Sinta 5','Sinta 6'];
         if (!in_array($data['akreditasi_peringkat'], $valid_sinta, true)) {
             $errors[] = 'Pilih peringkat Sinta 1–6.';
@@ -92,23 +113,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!filter_var($data['akreditasi_url'], FILTER_VALIDATE_URL)) {
             $errors[] = 'URL Sinta tidak valid.';
         }
-    } elseif ($data['akreditasi_jenis'] === 'scopus') {
+    }
+    // Validasi Scopus
+    if ($scopus_on) {
         $valid_q = ['Q1','Q2','Q3','Q4'];
-        if (!in_array($data['akreditasi_peringkat'], $valid_q, true)) {
-            $errors[] = 'Pilih kuartil Q1–Q4.';
+        if (!in_array($data['scopus_q'], $valid_q, true)) {
+            $errors[] = 'Pilih kuartil Scopus Q1–Q4.';
         }
-        if ($data['akreditasi_url'] === '') {
+        if ($data['scopus_url'] === '') {
             $errors[] = 'URL Scimago wajib diisi untuk jurnal terindeks Scopus.';
-        } elseif (!filter_var($data['akreditasi_url'], FILTER_VALIDATE_URL)) {
+        } elseif (!filter_var($data['scopus_url'], FILTER_VALIDATE_URL)) {
             $errors[] = 'URL Scimago tidak valid.';
         }
-    } else {
-        $data['akreditasi_peringkat'] = '';
-        $data['akreditasi_url'] = '';
     }
-
-    // is_scopus otomatis sinkron dengan jenis akreditasi
-    if ($data['akreditasi_jenis'] === 'scopus') $data['is_scopus'] = 1;
 
     if (empty($errors)) {
         if ($is_edit) {
@@ -117,15 +134,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     nama_jurnal=?, unit_kerja=?, url_archive=?,
                     frekuensi_terbit=?, volume_per_tahun=?, apc=?,
                     doi=?, issn=?, p_issn=?, e_issn=?,
-                    akreditasi_jenis=?, akreditasi_peringkat=?, akreditasi_url=?, is_scopus=?,
+                    akreditasi_jenis=?, akreditasi_peringkat=?, akreditasi_url=?,
+                    is_scopus=?, scopus_q=?, scopus_url=?,
                     link_gscholar=?, link_garuda=?, link_editor=?, link_sinta=?
                  WHERE id=?",
-                'sssssssssssssissssi',
+                'sssssssssssssissssssi',
                 [$data['nama_jurnal'], $data['unit_kerja'], $data['url_archive'],
                  $data['frekuensi_terbit'], $data['volume_per_tahun'], $data['apc'],
                  $data['doi'], $data['issn'], $data['p_issn'], $data['e_issn'],
                  $data['akreditasi_jenis'], $data['akreditasi_peringkat'], $data['akreditasi_url'],
-                 $data['is_scopus'],
+                 $data['is_scopus'], $data['scopus_q'], $data['scopus_url'],
                  $data['link_gscholar'], $data['link_garuda'], $data['link_editor'], $data['link_sinta'],
                  $id]
             );
@@ -136,15 +154,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     (nama_jurnal, unit_kerja, url_archive,
                      frekuensi_terbit, volume_per_tahun, apc,
                      doi, issn, p_issn, e_issn,
-                     akreditasi_jenis, akreditasi_peringkat, akreditasi_url, is_scopus,
+                     akreditasi_jenis, akreditasi_peringkat, akreditasi_url,
+                     is_scopus, scopus_q, scopus_url,
                      link_gscholar, link_garuda, link_editor, link_sinta)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                'sssssssssssssissss',
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                'sssssssssssssissssss',
                 [$data['nama_jurnal'], $data['unit_kerja'], $data['url_archive'],
                  $data['frekuensi_terbit'], $data['volume_per_tahun'], $data['apc'],
                  $data['doi'], $data['issn'], $data['p_issn'], $data['e_issn'],
                  $data['akreditasi_jenis'], $data['akreditasi_peringkat'], $data['akreditasi_url'],
-                 $data['is_scopus'],
+                 $data['is_scopus'], $data['scopus_q'], $data['scopus_url'],
                  $data['link_gscholar'], $data['link_garuda'], $data['link_editor'], $data['link_sinta']]
             );
             $jid = (int)$r['insert_id'];
@@ -243,18 +262,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <fieldset>
     <legend>Akreditasi / Indeksasi</legend>
-    <label>Jenis Akreditasi *
-      <select name="akreditasi_jenis" id="akrJenis">
-        <option value="belum"  <?= $data['akreditasi_jenis']==='belum'  ? 'selected' : '' ?>>Belum Terakreditasi</option>
-        <option value="sinta"  <?= $data['akreditasi_jenis']==='sinta'  ? 'selected' : '' ?>>Sinta (Akreditasi Nasional)</option>
-        <option value="scopus" <?= $data['akreditasi_jenis']==='scopus' ? 'selected' : '' ?>>Scopus / Scimago (Internasional)</option>
-      </select>
-    </label>
+    <p class="muted small" style="margin:0 0 10px">
+      Centang sesuai status. Sebuah jurnal bisa <strong>terakreditasi Sinta</strong> sekaligus <strong>terindeks Scopus</strong>.
+    </p>
 
-    <div id="boxSinta" class="akr-box" style="display:none">
+    <!-- SINTA -->
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin:0 0 6px;cursor:pointer">
+      <input type="checkbox" name="sinta_on" id="sintaOn" value="1"
+             <?= $data['akreditasi_jenis']==='sinta' ? 'checked' : '' ?>>
+      🏅 Terakreditasi SINTA
+    </label>
+    <div id="boxSinta" class="akr-box" style="<?= $data['akreditasi_jenis']==='sinta' ? '' : 'display:none' ?>">
       <div class="row-2">
         <label>Peringkat Sinta *
-          <select name="akreditasi_peringkat_sinta" id="peringkatSinta">
+          <select name="sinta_level" id="sintaLevel">
             <option value="">— pilih —</option>
             <?php foreach (['Sinta 1','Sinta 2','Sinta 3','Sinta 4','Sinta 5','Sinta 6'] as $s): ?>
               <option value="<?= h($s) ?>"
@@ -264,35 +285,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </select>
         </label>
         <label>URL Profil Sinta *
-          <input type="url" name="akreditasi_url_sinta" id="urlSinta"
+          <input type="url" name="sinta_url" id="sintaUrl"
                  value="<?= $data['akreditasi_jenis']==='sinta' ? h($data['akreditasi_url']) : '' ?>"
                  placeholder="https://sinta.kemdiktisaintek.go.id/journals/profile/14871">
         </label>
       </div>
     </div>
 
-    <div id="boxScopus" class="akr-box" style="display:none">
+    <!-- SCOPUS -->
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin:14px 0 6px;cursor:pointer">
+      <input type="checkbox" name="is_scopus" id="scopusOn" value="1"
+             <?= $data['is_scopus'] ? 'checked' : '' ?>>
+      🌐 Terindeks Scopus
+    </label>
+    <div id="boxScopus" class="akr-box" style="<?= $data['is_scopus'] ? '' : 'display:none' ?>">
       <div class="row-2">
         <label>Kuartil Scopus *
-          <select name="akreditasi_peringkat_scopus" id="peringkatScopus">
+          <select name="scopus_q" id="scopusQ">
             <option value="">— pilih —</option>
             <?php foreach (['Q1','Q2','Q3','Q4'] as $q): ?>
-              <option value="<?= h($q) ?>"
-                <?= ($data['akreditasi_jenis']==='scopus' && $data['akreditasi_peringkat']===$q) ? 'selected' : '' ?>>
-                <?= h($q) ?></option>
+              <option value="<?= h($q) ?>" <?= $data['scopus_q']===$q ? 'selected' : '' ?>><?= h($q) ?></option>
             <?php endforeach; ?>
           </select>
         </label>
         <label>URL Scimago *
-          <input type="url" name="akreditasi_url_scopus" id="urlScopus"
-                 value="<?= $data['akreditasi_jenis']==='scopus' ? h($data['akreditasi_url']) : '' ?>"
+          <input type="url" name="scopus_url" id="scopusUrl"
+                 value="<?= h($data['scopus_url']) ?>"
                  placeholder="https://www.scimagojr.com/journalsearch.php?q=...">
         </label>
       </div>
     </div>
-
-    <input type="hidden" name="akreditasi_peringkat" id="akrPeringkat" value="<?= h($data['akreditasi_peringkat']) ?>">
-    <input type="hidden" name="akreditasi_url"       id="akrUrl"       value="<?= h($data['akreditasi_url']) ?>">
   </fieldset>
 
   <fieldset>
@@ -381,39 +403,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 (function () {
-  var sel       = document.getElementById('akrJenis');
+  // Toggle box Sinta & Scopus independen via checkbox
+  var sintaOn   = document.getElementById('sintaOn');
+  var scopusOn  = document.getElementById('scopusOn');
   var boxSinta  = document.getElementById('boxSinta');
   var boxScopus = document.getElementById('boxScopus');
-  var hPer      = document.getElementById('akrPeringkat');
-  var hUrl      = document.getElementById('akrUrl');
-  var pSinta    = document.getElementById('peringkatSinta');
-  var pScopus   = document.getElementById('peringkatScopus');
-  var uSinta    = document.getElementById('urlSinta');
-  var uScopus   = document.getElementById('urlScopus');
 
-  function refresh() {
-    var v = sel.value;
-    boxSinta.style.display  = (v === 'sinta')  ? '' : 'none';
-    boxScopus.style.display = (v === 'scopus') ? '' : 'none';
-    if (v === 'sinta') {
-      hPer.value = pSinta.value || '';
-      hUrl.value = uSinta.value || '';
-    } else if (v === 'scopus') {
-      hPer.value = pScopus.value || '';
-      hUrl.value = uScopus.value || '';
-    } else {
-      hPer.value = '';
-      hUrl.value = '';
-    }
+  function sync() {
+    boxSinta.style.display  = sintaOn.checked  ? '' : 'none';
+    boxScopus.style.display = scopusOn.checked ? '' : 'none';
   }
-
-  sel.addEventListener('change', refresh);
-  pSinta.addEventListener('change', refresh);
-  pScopus.addEventListener('change', refresh);
-  uSinta.addEventListener('input', refresh);
-  uScopus.addEventListener('input', refresh);
-
-  refresh();
+  sintaOn.addEventListener('change', sync);
+  scopusOn.addEventListener('change', sync);
+  sync();
 })();
 </script>
 

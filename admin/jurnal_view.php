@@ -174,24 +174,29 @@ foreach ($issues_by_year as $list) {
       <dt><span class="ico">&#127942;</span> Akreditasi</dt>
       <dd>
         <?php
-          $aj  = isset($j['akreditasi_jenis']) ? $j['akreditasi_jenis'] : 'belum';
-          $ap  = isset($j['akreditasi_peringkat']) ? $j['akreditasi_peringkat'] : '';
-          $aurl= isset($j['akreditasi_url']) ? $j['akreditasi_url'] : '';
-          if ($aj === 'sinta' && $ap !== ''):
+          $aj   = $j['akreditasi_jenis'] ?? 'belum';
+          $ap   = $j['akreditasi_peringkat'] ?? '';
+          $aurl = $j['akreditasi_url'] ?? '';
+          $is_scopus = (int)($j['is_scopus'] ?? 0);
+          $sq   = $j['scopus_q'] ?? '';
+          $surl = $j['scopus_url'] ?? '';
+          $sinta_ok  = ($aj === 'sinta' && $ap !== '');
+          $scopus_ok = ($is_scopus && $sq !== '');
+          if ($sinta_ok):
             $cls = 'akr-sinta-' . preg_replace('/[^0-9]/', '', $ap);
         ?>
           <span class="akr-badge <?= h($cls) ?>"><?= h($ap) ?></span>
           <?php if ($aurl): ?>
-            <a href="<?= h($aurl) ?>" target="_blank" rel="noopener" class="link-ext">[lihat] <span class="ext-arrow">&#8599;</span></a>
+            <a href="<?= h($aurl) ?>" target="_blank" rel="noopener" class="link-ext">[sinta] <span class="ext-arrow">&#8599;</span></a>
           <?php endif; ?>
-        <?php elseif ($aj === 'scopus' && $ap !== ''):
-            $cls = 'akr-scopus-' . strtolower($ap);
-        ?>
-          <span class="akr-badge <?= h($cls) ?>">Scopus <?= h($ap) ?></span>
-          <?php if ($aurl): ?>
-            <a href="<?= h($aurl) ?>" target="_blank" rel="noopener" class="link-ext">[scimago] <span class="ext-arrow">&#8599;</span></a>
+        <?php endif; ?>
+        <?php if ($scopus_ok): ?>
+          <span class="akr-badge akr-scopus-<?= h(strtolower($sq)) ?>" <?= $sinta_ok ? 'style="margin-left:6px"' : '' ?>>Scopus <?= h($sq) ?></span>
+          <?php if ($surl): ?>
+            <a href="<?= h($surl) ?>" target="_blank" rel="noopener" class="link-ext">[scimago] <span class="ext-arrow">&#8599;</span></a>
           <?php endif; ?>
-        <?php else: ?>
+        <?php endif; ?>
+        <?php if (!$sinta_ok && !$scopus_ok): ?>
           <span class="akr-badge akr-belum">Belum Terakreditasi</span>
         <?php endif; ?>
         <?php if (!empty($j['file_sertifikat'])): ?>
