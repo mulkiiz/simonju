@@ -25,9 +25,11 @@ if ($page < 1) $page = 1;
 // =========================================================
 // Reusable SQL fragments
 // =========================================================
+// Belum ISSN = P-ISSN & E-ISSN dua-duanya bukan format valid xxxx-xxxx
+// (digit cek terakhir boleh X). Nilai kosong/'0'/'-'/teks dianggap belum.
 $BELUM_ISSN_SQL = "
-  (j.p_issn IS NULL OR TRIM(j.p_issn) = '')
-  AND (j.e_issn IS NULL OR TRIM(j.e_issn) = '')
+  (COALESCE(j.p_issn,'') NOT REGEXP '^[0-9]{4}-[0-9]{3}[0-9Xx]$')
+  AND (COALESCE(j.e_issn,'') NOT REGEXP '^[0-9]{4}-[0-9]{3}[0-9Xx]$')
 ";
 
 // APC ber-bayar: kolom sudah numeric after cleanup, cek > 0

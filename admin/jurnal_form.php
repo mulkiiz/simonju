@@ -61,6 +61,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($data['akreditasi_jenis'] === '') $data['akreditasi_jenis'] = 'belum';
 
+    // Normalisasi ISSN: format valid xxxx-xxxx (digit, digit cek boleh X).
+    // Selain itu (kosong/'0'/teks) -> simbol strip '-'.
+    foreach (['p_issn','e_issn'] as $ik) {
+        $v = strtoupper(trim($data[$ik]));
+        $data[$ik] = preg_match('/^\d{4}-\d{3}[\dX]$/', $v) ? $v : '-';
+    }
+
     // --- Validasi jurnal ---
     if ($data['nama_jurnal'] === '') $errors[] = 'Nama jurnal wajib diisi.';
     if ($data['url_archive'] === '') {
@@ -255,9 +262,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <input type="text" name="doi" value="<?= h($data['doi']) ?>" placeholder="10.20884/...">
       </label>
     </div>
-    <label>ISSN <span class="muted small">(kolom lama — opsional, gunakan P-ISSN/E-ISSN di atas)</span>
-      <input type="text" name="issn" value="<?= h($data['issn']) ?>" placeholder="2086-xxxx">
-    </label>
+    <!-- Kolom 'issn' lama dipertahankan tersembunyi agar data tak hilang;
+         input ISSN cukup P-ISSN & E-ISSN di atas. -->
+    <input type="hidden" name="issn" value="<?= h($data['issn']) ?>">
   </fieldset>
 
   <fieldset>

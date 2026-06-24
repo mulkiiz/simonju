@@ -5,9 +5,10 @@ require_once __DIR__ . '/../includes/header_admin.php';
 // =========================================================
 // Reusable SQL
 // =========================================================
+// Belum ISSN = P-ISSN & E-ISSN dua-duanya bukan format valid xxxx-xxxx.
 $BELUM_ISSN_SQL = "
-  (p_issn IS NULL OR p_issn = '' OR LOWER(p_issn) LIKE '%x%')
-  AND (e_issn IS NULL OR e_issn = '' OR LOWER(e_issn) LIKE '%x%')
+  (COALESCE(p_issn,'') NOT REGEXP '^[0-9]{4}-[0-9]{3}[0-9Xx]$')
+  AND (COALESCE(e_issn,'') NOT REGEXP '^[0-9]{4}-[0-9]{3}[0-9Xx]$')
 ";
 $BER_APC_SQL = "apc REGEXP '^[0-9]+$' AND CAST(apc AS UNSIGNED) > 0";
 
