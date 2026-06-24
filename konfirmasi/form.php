@@ -237,10 +237,10 @@ else:
                  value="<?= h($data['volume_per_tahun']) ?>"
                  placeholder="contoh: 2">
         </label>
-        <label>APC (Article Processing Charge)
+        <label>APC (Article Processing Charge) <span class="muted small">(angka saja, kosongkan bila tidak ada)</span>
           <input type="text" name="apc"
                  value="<?= h($data['apc']) ?>"
-                 placeholder="contoh: Gratis / Rp 500.000">
+                 placeholder="contoh: 500000">
         </label>
       </div>
       <div class="row-2">

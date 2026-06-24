@@ -203,13 +203,11 @@ $stat_apc = (int)($r_apc['n'] ?? 0);
 
 // Helper: format APC untuk display
 function fmt_apc($val) {
-    $val = trim($val);
-    if ($val === '' || $val === null) return '';
-    if ($val === '0') return 'Gratis';
-    if (preg_match('/^\d+$/', $val)) {
-        return 'Rp ' . number_format((int)$val, 0, ',', '.');
-    }
-    return $val; // fallback jika belum ter-cleanup
+    // Tanpa konsep "Gratis": hanya angka positif yang ditampilkan Rp,
+    // selain itu (0/kosong/'-'/teks) -> '-' (tidak ada APC).
+    $val = trim((string)$val);
+    if (!preg_match('/^[1-9][0-9]*$/', $val)) return '-';
+    return 'Rp ' . number_format((int)$val, 0, ',', '.');
 }
 
 // Helper buat URL
@@ -377,10 +375,8 @@ function build_qs($override = []) {
         <td><?php if ($eissn_valid): ?><span><?= h($eissn) ?></span><?php else: ?><span class="muted">—</span><?php endif; ?></td>
         <td><?= h($j['editor_nama'] ?: '—') ?></td>
         <td>
-          <?php if ($apc_display !== '' && $apc_display !== 'Gratis'): ?>
+          <?php if ($apc_display !== '-'): ?>
             <span class="badge badge-partial"><?= h($apc_display) ?></span>
-          <?php elseif ($apc_display === 'Gratis'): ?>
-            <span class="muted small">Gratis</span>
           <?php else: ?>
             <span class="muted">—</span>
           <?php endif; ?>

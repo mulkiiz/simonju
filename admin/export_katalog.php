@@ -37,10 +37,8 @@ $tahun_terbit = date('Y');
 // ── Helpers ──────────────────────────────────────────────
 function kat_apc($v) {
     $v = trim((string)$v);
-    if ($v === '')  return '—';
-    if ($v === '0') return 'Gratis';
-    if (preg_match('/^\d+$/', $v)) return 'Rp ' . number_format((int)$v, 0, ',', '.');
-    return $v;
+    if (!preg_match('/^[1-9][0-9]*$/', $v)) return '-';
+    return 'Rp ' . number_format((int)$v, 0, ',', '.');
 }
 function kat_akreditasi($r) {
     // Sinta & Scopus independen; tampilkan keduanya bila berlaku.

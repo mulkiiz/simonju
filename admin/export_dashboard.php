@@ -53,11 +53,9 @@ $sheets = [
 
 // Helper: format APC
 function fmt_apc_export($val) {
-    $val = trim($val);
-    if ($val === '' || $val === null) return '';
-    if ($val === '0') return 'Gratis';
-    if (preg_match('/^\d+$/', $val)) return number_format((int)$val, 0, ',', '.');
-    return $val;
+    $val = trim((string)$val);
+    if (!preg_match('/^[1-9][0-9]*$/', $val)) return '-';
+    return number_format((int)$val, 0, ',', '.');
 }
 
 $xlsx = new SimpleXLSX();

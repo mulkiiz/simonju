@@ -68,6 +68,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data[$ik] = preg_match('/^\d{4}-\d{3}[\dX]$/', $v) ? $v : '-';
     }
 
+    // Normalisasi APC: hanya angka positif yang disimpan; selain itu
+    // (0/kosong/'Gratis'/teks) dianggap tidak ada APC -> '-'.
+    $apc_v = preg_replace('/[^0-9]/', '', $data['apc']); // buang Rp/titik/teks
+    $data['apc'] = ($apc_v !== '' && (int)$apc_v > 0) ? $apc_v : '-';
+
     // --- Validasi jurnal ---
     if ($data['nama_jurnal'] === '') $errors[] = 'Nama jurnal wajib diisi.';
     if ($data['url_archive'] === '') {
@@ -243,9 +248,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                placeholder="contoh: 2">
       </label>
     </div>
-    <label>APC (Article Processing Charge)
+    <label>APC (Article Processing Charge) <span class="muted small">(angka saja, kosongkan bila tidak ada)</span>
       <input type="text" name="apc" value="<?= h($data['apc']) ?>"
-             placeholder="contoh: Gratis / Rp 500.000">
+             placeholder="contoh: 500000">
     </label>
   </fieldset>
 
