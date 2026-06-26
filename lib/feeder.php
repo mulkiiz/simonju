@@ -20,17 +20,33 @@ function feeder_run($token)
     $src = defined('PPJ_SOURCE_URL') ? rtrim(PPJ_SOURCE_URL, '/') : 'https://ppj.jurnalsinta.id';
     $resp = http_get($src . '/api/terbitan.php?token=' . urlencode(CRON_TOKEN));
     if ((int)$resp['code'] !== 200 || !$resp['body']) {
-        echo "Ambil data gagal: HTTP {$resp['code']} | {$resp['error']}\n";
+        $msg = "Ambil data gagal: HTTP {$resp['code']} | {$resp['error']}";
+        echo $msg . "\n";
+        feeder_log('failed', 0, 0, 0, $msg);
         return;
     }
 
     $data = json_decode($resp['body'], true);
     if (!is_array($data) || !isset($data['jurnals'])) {
         echo "Data sumber tidak valid.\n";
+        feeder_log('failed', 0, 0, 0, 'Data sumber tidak valid (JSON).');
         return;
     }
 
-    feeder_store($data);
+    $c = feeder_store($data);
+    feeder_log('success', $c['j_new'], $c['j_upd'], $c['t_upsert'],
+        "baru={$c['j_new']} update={$c['j_upd']} terbitan={$c['t_upsert']}");
+}
+
+/** Catat hasil sync ke tabel sync_log (abaikan bila tabel belum ada). */
+function feeder_log($status, $j_new, $j_upd, $t_upsert, $message)
+{
+    @exec_q(
+        "INSERT INTO sync_log (status, jurnal_baru, jurnal_update, terbitan_upsert, message)
+         VALUES (?,?,?,?,?)",
+        'siiis',
+        [$status, (int)$j_new, (int)$j_upd, (int)$t_upsert, mb_substr((string)$message, 0, 255)]
+    );
 }
 
 /**
@@ -119,4 +135,6 @@ function feeder_store($data)
 
     echo "Selesai. Jurnal baru: {$j_new}, diperbarui: {$j_upd}, dilewati: {$skip}\n";
     echo "Terbitan diupsert: {$t_upsert}\n";
+
+    return ['j_new' => $j_new, 'j_upd' => $j_upd, 't_upsert' => $t_upsert, 'skip' => $skip];
 }

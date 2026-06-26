@@ -54,6 +54,17 @@ $logs = fetch_all(
       WHERE cl.trigger_type='cron'
       ORDER BY cl.executed_at DESC LIMIT 30"
 );
+
+// --- Sync klien (rju) dari sync_log (kosong di ppj — wajar) ---
+$last_sync   = fetch_one("SELECT * FROM sync_log ORDER BY run_at DESC LIMIT 1");
+$sync_recent = fetch_all("SELECT * FROM sync_log ORDER BY run_at DESC LIMIT 10");
+$sync_gap_txt = '—'; $sync_gap_cls = 'muted'; $sync_mins = null;
+if ($last_sync) {
+    $sync_mins = (int)round((time() - strtotime($last_sync['run_at'])) / 60);
+    if ($sync_mins < 1500)      { $sync_gap_txt = $sync_mins < 90 ? "{$sync_mins} menit lalu" : round($sync_mins/60,1)." jam lalu"; $sync_gap_cls = 'badge-success'; }
+    elseif ($sync_mins < 2880)  { $sync_gap_txt = round($sync_mins/60,1)." jam lalu"; $sync_gap_cls = 'badge-partial'; }
+    else                        { $sync_gap_txt = round($sync_mins/1440,1)." hari lalu"; $sync_gap_cls = 'badge-failed'; }
+}
 ?>
 <style>
   .ch-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
@@ -141,6 +152,55 @@ $logs = fetch_all(
   </tbody>
 </table>
 </div>
+<?php endif; ?>
+
+<h2 style="margin-top:26px">🔄 Sync Klien (rju.unsoed)</h2>
+<p class="muted small">Diisi saat <code>cron/run.php</code> dijalankan (cron-job.org → tarik data dari ppj). Kosong di ppj — wajar.</p>
+
+<?php if (!$last_sync): ?>
+  <div class="alert alert-info">Belum ada catatan sync. Di <strong>ppj</strong> ini normal (ppj sumber data, bukan klien). Di <strong>rju</strong> berarti <code>cron/run.php</code> belum pernah jalan / tabel <code>sync_log</code> belum dibuat.</div>
+<?php else: ?>
+  <div class="ch-cards">
+    <div class="ch-card">
+      <div class="lbl">Sync terakhir</div>
+      <div class="num"><span class="badge <?= $sync_gap_cls ?>" style="font-size:.9rem"><?= h($sync_gap_txt) ?></span></div>
+      <div class="muted small"><?= h($last_sync['run_at']) ?></div>
+    </div>
+    <div class="ch-card">
+      <div class="lbl">Status terakhir</div>
+      <div class="num"><span class="badge badge-<?= $last_sync['status']==='success'?'success':'failed' ?>" style="font-size:.85rem"><?= h($last_sync['status']) ?></span></div>
+    </div>
+    <div class="ch-card">
+      <div class="lbl">Jurnal (baru / update)</div>
+      <div class="num"><?= (int)$last_sync['jurnal_baru'] ?> / <?= (int)$last_sync['jurnal_update'] ?></div>
+    </div>
+    <div class="ch-card">
+      <div class="lbl">Terbitan diupsert</div>
+      <div class="num"><?= (int)$last_sync['terbitan_upsert'] ?></div>
+    </div>
+  </div>
+
+  <?php if ($sync_mins !== null && $sync_mins > 2880): ?>
+    <div class="alert alert-error">Sync terakhir &gt; 2 hari lalu — cek cron-job.org / <code>cron/run.php</code> di rju.</div>
+  <?php endif; ?>
+
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Waktu</th><th>Status</th><th class="num">Baru</th><th class="num">Update</th><th class="num">Terbitan</th><th>Pesan</th></tr></thead>
+    <tbody>
+    <?php foreach ($sync_recent as $s): ?>
+      <tr>
+        <td class="small"><?= h($s['run_at']) ?></td>
+        <td><span class="badge badge-<?= $s['status']==='success'?'success':'failed' ?>"><?= h($s['status']) ?></span></td>
+        <td class="num"><?= (int)$s['jurnal_baru'] ?></td>
+        <td class="num"><?= (int)$s['jurnal_update'] ?></td>
+        <td class="num"><?= (int)$s['terbitan_upsert'] ?></td>
+        <td class="small"><?= h($s['message']) ?></td>
+      </tr>
+    <?php endforeach; ?>
+    </tbody>
+  </table>
+  </div>
 <?php endif; ?>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
