@@ -26,10 +26,10 @@ function stat_jurnal_cols() {
               LIMIT 1) AS cur_issue";
 }
 
-/** Format volume terkini -> 'Vol X No Y (YYYY)' atau '—'. */
+/** Format volume terkini -> 'Vol X No Y (YYYY)' atau 'Belum ada terbitan'. */
 function stat_cur_vol_text($r) {
     $raw = trim((string)($r['cur_issue'] ?? ''));
-    if ($raw === '' || $raw === '||') return '—';
+    if ($raw === '' || $raw === '||') return 'Belum ada terbitan';
     [$v, $n, $th] = array_pad(explode('|', $raw), 3, '');
     $out = 'Vol ' . ($v !== '' ? $v : '?');
     $out .= ' No ' . ($n !== '' ? $n : '?');

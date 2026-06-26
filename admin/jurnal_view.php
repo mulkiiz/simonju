@@ -312,7 +312,14 @@ foreach ($issues_by_year as $list) {
 <h2><span class="ico">&#128202;</span> Riwayat Terbitan</h2>
 
 <?php if (empty($terbitan)): ?>
-  <p class="muted">Belum ada data terbitan. Klik "Crawl Sekarang" untuk mengambil data.</p>
+  <?php if (!empty($j['last_crawled_at'])): ?>
+    <div class="alert alert-error">
+      ⚠️ <strong>Jurnal ini belum ada terbitan sama sekali.</strong>
+      Crawl sudah dijalankan (<?= h($j['last_crawled_at']) ?><?= $j['last_crawl_status'] ? ', status ' . h($j['last_crawl_status']) : '' ?>) namun tidak menemukan satu pun terbitan di portal jurnal.
+    </div>
+  <?php else: ?>
+    <p class="muted">Belum ada data terbitan. Klik "Crawl Sekarang" untuk mengambil data.</p>
+  <?php endif; ?>
 <?php else: ?>
 
 <!-- ============== DASHBOARD GRAFIK (Pure CSS, no library) ============== -->
