@@ -2,9 +2,128 @@
 require_once __DIR__ . '/../includes/db.php';
 
 /**
- * Fetch URL via cURL.
+ * Fetch URL — otomatis pilih metode & strategi CA yang tersedia di server.
+ *
+ * Riwayat masalah di server prod ini:
+ * 1) Admin awalnya bilang "curl dimatikan" — diagnostik membuktikan itu
+ *    SALAH. disable_functions hanya berisi pcntl_xxx, exec, shell_exec, dst,
+ *    curl_init/curl_exec TIDAK dimatikan.
+ * 2) Error sebenarnya: "SSL certificate problem: unable to get local
+ *    issuer certificate". Ini karena kode lama MEMAKSA pakai CA bundle
+ *    custom (includes/cacert.pem) kalau filenya ada — dan file itu
+ *    kemungkinan rusak/usang di server prod, padahal CA bundle DEFAULT
+ *    sistem di server ini justru terbukti baik (diag_http.php berhasil
+ *    fetch 200 OK pakai default, tanpa override apa pun).
+ * 3) Kasus rju.unsoed (ISPConfig): CA DEFAULT *dan* cacert.pem custom
+ *    SAMA-SAMA gagal "unable to get local issuer certificate". Ketika CA
+ *    bawaan sistem pun gagal, masalahnya bukan di sisi klien — server
+ *    jurnal target tidak mengirim intermediate certificate-nya, sehingga
+ *    TIDAK ADA CA bundle yang bisa menyambung rantai ke root. Update
+ *    cacert.pem percuma. Solusi: degradasi ke fetch tanpa verifikasi SSL
+ *    sebagai tingkat terakhir (aman: data yang di-crawl bersifat publik).
+ *
+ * Strategi: coba CA DEFAULT dulu (yang terbukti jalan). Custom CA bundle
+ * (cacert.pem) dipakai sebagai fallback ke-2 kalau errornya soal sertifikat.
+ * Kalau keduanya gagal soal sertifikat juga, fetch tanpa verifikasi SSL
+ * sebagai tingkat ke-3. Kalau curl tetap gagal total (code 0) setelah
+ * semua percobaan, baru coba stream sebagai jaring pengaman terakhir
+ * (berguna kalau suatu saat curl memang benar2 mati).
  */
 function http_get($url) {
+    if (curl_is_available()) {
+        $resp = http_get_curl($url);
+
+        // curl gagal total di level koneksi (code 0 = tidak pernah
+        // dapat respons HTTP sama sekali) -> coba stream sbg jaring terakhir
+        if ((int)$resp['code'] === 0 && ini_get('allow_url_fopen')) {
+            $streamResp = http_get_stream($url);
+            if ((int)$streamResp['code'] > 0) return $streamResp;
+        }
+        return $resp;
+    }
+    if (ini_get('allow_url_fopen')) {
+        return http_get_stream($url);
+    }
+    return [
+        'body'  => false,
+        'code'  => 0,
+        'error' => 'Tidak ada metode HTTP yang tersedia di server ini: curl tidak bisa dipakai DAN allow_url_fopen=Off. Minta admin server mengaktifkan salah satunya.',
+    ];
+}
+
+/**
+ * Cek curl benar-benar bisa dipakai (bukan cuma extension_loaded,
+ * karena disable_functions bisa mematikan fungsi tanpa unload extension).
+ */
+function curl_is_available() {
+    if (!function_exists('curl_init')) return false;
+    $disabled = ini_get('disable_functions');
+    if ($disabled) {
+        $list = array_map('trim', explode(',', $disabled));
+        if (in_array('curl_init', $list, true) || in_array('curl_exec', $list, true)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Deteksi error spesifik soal CA/sertifikat (bukan error koneksi lain
+ * seperti timeout, DNS, dst) — supaya fallback CA bundle custom HANYA
+ * dipicu kalau memang relevan.
+ */
+function is_ssl_cert_error($err) {
+    if (!$err) return false;
+    $err = strtolower($err);
+    $has_cert_word = (strpos($err, 'certificate') !== false) || (strpos($err, 'ssl') !== false);
+    $has_issue_word = (strpos($err, 'issuer') !== false) || (strpos($err, 'verify') !== false) || (strpos($err, 'cert') !== false);
+    return $has_cert_word && $has_issue_word;
+}
+
+/**
+ * Lokasi CA bundle custom (fallback). CA_BUNDLE_PATH dari config.php kalau
+ * ada (tapi config.php gitignored, jgn gantung), atau includes/cacert.pem
+ * di repo. Kalau curl tetap gagal SSL walau pakai file ini juga, berarti
+ * file ini sendiri yang rusak/usang — unduh ulang dari https://curl.se/ca/cacert.pem
+ */
+function custom_ca_bundle_path() {
+    return defined('CA_BUNDLE_PATH') ? CA_BUNDLE_PATH : __DIR__ . '/../includes/cacert.pem';
+}
+
+function http_get_curl($url) {
+    // Percobaan 1: CA DEFAULT sistem (tanpa override) — ini yang terbukti
+    // berhasil di server prod lewat diag_http.php.
+    $resp = http_get_curl_attempt($url, null, true);
+
+    if ((int)$resp['code'] === 0 && is_ssl_cert_error($resp['error'])) {
+        // Percobaan 2: CA bundle custom (cacert.pem)
+        $caBundle = custom_ca_bundle_path();
+        if (is_file($caBundle)) {
+            $resp2 = http_get_curl_attempt($url, $caBundle, true);
+            if ((int)$resp2['code'] !== 0) return $resp2;
+        }
+
+        // Percobaan 3 (TERAKHIR): matikan verifikasi SSL.
+        // Banyak server OJS jurnal salah konfigurasi TLS — tidak mengirim
+        // intermediate certificate — sehingga TIDAK ADA CA bundle di sisi
+        // klien yang bisa memverifikasi rantainya. Data crawl bersifat
+        // publik (daftar terbitan, tanpa login), jadi degradasi ini aman.
+        $resp3 = http_get_curl_attempt($url, null, false);
+        if ((int)$resp3['code'] !== 0) {
+            $resp3['error'] = 'CATATAN: verifikasi SSL dilewati (server jurnal kemungkinan tidak mengirim intermediate cert). '
+                . $resp3['error'];
+            return $resp3;
+        }
+
+        // Tetap gagal walau verifikasi dimatikan -> bukan soal sertifikat,
+        // melainkan koneksi/DNS/timeout.
+        $resp['error'] .= " | CA custom & tanpa-verifikasi juga gagal — kemungkinan masalah koneksi/DNS/timeout, bukan sekadar sertifikat.";
+    }
+
+    return $resp;
+}
+
+function http_get_curl_attempt($url, $caBundle, $verify = true) {
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL            => $url,
@@ -14,20 +133,89 @@ function http_get($url) {
         CURLOPT_TIMEOUT        => CRAWLER_TIMEOUT,
         CURLOPT_CONNECTTIMEOUT => 10,
         CURLOPT_USERAGENT      => CRAWLER_USER_AGENT,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_SSL_VERIFYPEER => $verify,
+        CURLOPT_SSL_VERIFYHOST => $verify ? 2 : 0,
         CURLOPT_ENCODING       => '',
     ]);
-    // CA bundle: pakai CA_BUNDLE_PATH dari config kalau ada, fallback ke
-    // includes/cacert.pem di repo (config.php gitignored, jadi jgn gantung).
-    $caBundle = defined('CA_BUNDLE_PATH') ? CA_BUNDLE_PATH : __DIR__ . '/../includes/cacert.pem';
-    if (is_file($caBundle)) {
+    if ($verify && $caBundle && is_file($caBundle)) {
         curl_setopt($ch, CURLOPT_CAINFO, $caBundle);
     }
     $body = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err  = curl_error($ch);
     curl_close($ch);
+    return ['body' => $body, 'code' => $code, 'error' => $err];
+}
+
+/**
+ * Fallback tanpa curl: file_get_contents() + stream context.
+ * Strategi sama: CA default dulu, custom cacert.pem kalau error sertifikat,
+ * lalu tanpa verifikasi sebagai tingkat terakhir.
+ */
+function http_get_stream($url) {
+    $resp = http_get_stream_attempt($url, null, true);
+
+    if ((int)$resp['code'] === 0 && is_ssl_cert_error($resp['error'])) {
+        $caBundle = custom_ca_bundle_path();
+        if (is_file($caBundle)) {
+            $resp2 = http_get_stream_attempt($url, $caBundle, true);
+            if ((int)$resp2['code'] !== 0) return $resp2;
+        }
+        // Tingkat terakhir: tanpa verifikasi SSL (lihat alasan di http_get_curl)
+        $resp3 = http_get_stream_attempt($url, null, false);
+        if ((int)$resp3['code'] !== 0) {
+            $resp3['error'] = 'CATATAN: verifikasi SSL dilewati (server jurnal kemungkinan tidak mengirim intermediate cert). '
+                . $resp3['error'];
+            return $resp3;
+        }
+    }
+
+    return $resp;
+}
+
+function http_get_stream_attempt($url, $caBundle, $verify = true) {
+    $sslOpts = [
+        'verify_peer'      => $verify,
+        'verify_peer_name' => $verify,
+    ];
+    if ($verify && $caBundle && is_file($caBundle)) {
+        $sslOpts['cafile'] = $caBundle;
+    }
+    if (!$verify) {
+        // Izinkan self-signed / rantai tak lengkap saat verifikasi dimatikan
+        $sslOpts['allow_self_signed'] = true;
+    }
+
+    $ctx = stream_context_create([
+        'http' => [
+            'method'          => 'GET',
+            'timeout'         => CRAWLER_TIMEOUT,
+            'follow_location' => 1,
+            'max_redirects'   => 5,
+            'header'          => "User-Agent: " . CRAWLER_USER_AGENT . "\r\n",
+            'ignore_errors'   => true, // tetap ambil body walau status 4xx/5xx
+        ],
+        'ssl' => $sslOpts,
+    ]);
+
+    $body = @file_get_contents($url, false, $ctx);
+
+    $code = 0;
+    if (isset($http_response_header) && is_array($http_response_header)) {
+        // ambil status line TERAKHIR (kalau ada redirect, header berisi >1 status line)
+        foreach ($http_response_header as $h) {
+            if (preg_match('#^HTTP/\S+\s+(\d+)#', $h, $m)) {
+                $code = (int) $m[1];
+            }
+        }
+    }
+
+    $err = '';
+    if ($body === false) {
+        $e = error_get_last();
+        $err = $e['message'] ?? 'file_get_contents gagal (stream, allow_url_fopen)';
+    }
+
     return ['body' => $body, 'code' => $code, 'error' => $err];
 }
 
