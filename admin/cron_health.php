@@ -1,6 +1,14 @@
 <?php
-$page_title = 'Cron Health';
+$page_title = 'Health';
 require_once __DIR__ . '/../includes/header_admin.php';
+
+// Peran deployment:
+//  - 'source' (ppj): meng-crawl via cron cpanel -> tampil bagian Cron.
+//  - 'client' (rju): menarik data via cron/run.php -> tampil bagian Sync.
+// Set di config.php: define('APP_ROLE','client'); (default 'source').
+// Fallback: dianggap client bila PPJ_SOURCE_URL didefinisikan (khas rju).
+$role = defined('APP_ROLE') ? APP_ROLE : (defined('PPJ_SOURCE_URL') ? 'client' : 'source');
+$is_client = ($role === 'client');
 
 // --- Ringkasan cron crawler (trigger_type='cron') ---
 $last_cron = fetch_one(
@@ -75,13 +83,14 @@ if ($last_sync) {
 </style>
 
 <div class="page-head">
-  <h1>🩺 Cron Health</h1>
+  <h1>🩺 Health <span class="muted small" style="font-weight:400">(<?= $is_client ? 'klien/sync' : 'sumber/crawler' ?>)</span></h1>
   <div class="page-head-actions">
     <a href="crawl_log.php" class="btn">📝 Log lengkap</a>
     <a href="dashboard.php" class="btn">&larr; Dashboard</a>
   </div>
 </div>
 
+<?php if (!$is_client): ?>
 <div class="ch-cards">
   <div class="ch-card">
     <div class="lbl">Cron terakhir</div>
@@ -153,7 +162,9 @@ if ($last_sync) {
 </table>
 </div>
 <?php endif; ?>
+<?php endif; /* !is_client: akhir bagian Cron */ ?>
 
+<?php if ($is_client): ?>
 <h2 style="margin-top:26px">🔄 Sync Klien (rju.unsoed)</h2>
 <p class="muted small">Diisi saat <code>cron/run.php</code> dijalankan (cron-job.org → tarik data dari ppj). Kosong di ppj — wajar.</p>
 
@@ -202,5 +213,6 @@ if ($last_sync) {
   </table>
   </div>
 <?php endif; ?>
+<?php endif; /* is_client: akhir bagian Sync */ ?>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
