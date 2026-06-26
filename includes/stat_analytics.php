@@ -76,6 +76,44 @@ function stat_tanpa_terbitan_tahun($year) {
     );
 }
 
+/**
+ * Belum terbit tahun berjalan (cy) TAPI terbitan terakhirnya cy-1.
+ * (jeda 1 tahun: aktif 2025, belum terbit 2026)
+ */
+function stat_belum_cy_terakhir_cy1() {
+    $cy  = stat_years()[0];
+    $cy1 = stat_years()[1];
+    $cols = stat_jurnal_cols();
+    return fetch_all(
+        "SELECT {$cols}
+           FROM jurnals j
+          WHERE j.konfirmasi_status='terkonfirmasi'
+            AND NOT EXISTS (SELECT 1 FROM terbitan t WHERE t.jurnal_id=j.id AND CAST(t.tahun AS UNSIGNED)=?)
+            AND     EXISTS (SELECT 1 FROM terbitan t WHERE t.jurnal_id=j.id AND CAST(t.tahun AS UNSIGNED)=?)
+          ORDER BY j.nama_jurnal ASC",
+        'ii', [$cy, $cy1]
+    );
+}
+
+/**
+ * Belum terbit 2 tahun terakhir: tidak ada terbitan pada cy DAN cy-1
+ * (terbitan terakhir <= cy-2, atau belum pernah terbit sama sekali).
+ */
+function stat_belum_2th() {
+    $cy  = stat_years()[0];
+    $cy1 = stat_years()[1];
+    $cols = stat_jurnal_cols();
+    return fetch_all(
+        "SELECT {$cols}
+           FROM jurnals j
+          WHERE j.konfirmasi_status='terkonfirmasi'
+            AND NOT EXISTS (SELECT 1 FROM terbitan t WHERE t.jurnal_id=j.id AND CAST(t.tahun AS UNSIGNED)=?)
+            AND NOT EXISTS (SELECT 1 FROM terbitan t WHERE t.jurnal_id=j.id AND CAST(t.tahun AS UNSIGNED)=?)
+          ORDER BY j.nama_jurnal ASC",
+        'ii', [$cy, $cy1]
+    );
+}
+
 /** Jurnal terkonfirmasi yang TIDAK punya terbitan selama 3 tahun terakhir. */
 function stat_tanpa_terbitan_3th() {
     $cy = stat_years()[0];

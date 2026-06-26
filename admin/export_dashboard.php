@@ -109,10 +109,8 @@ $xlsx->addSheet('Top Artikel 3Th', $h_top, $d_top);
 // Belum ada terbitan per tahun + 3 tahun
 $h_no = ['No', 'Nama Jurnal', 'Akreditasi', 'Vol. Terkini', 'Crawl Terakhir', 'URL Portal', 'Link Sinta'];
 $no_sheets = [
-    "Belum Terbit {$cy}"  => stat_tanpa_terbitan_tahun($cy),
-    "Belum Terbit {$cy1}" => stat_tanpa_terbitan_tahun($cy1),
-    "Belum Terbit {$cy2}" => stat_tanpa_terbitan_tahun($cy2),
-    "3Th Tanpa Terbit"    => stat_tanpa_terbitan_3th(),
+    "Belum Terbit {$cy}"        => stat_belum_cy_terakhir_cy1(),
+    "Belum Terbit 2Th ({$cy2}-)" => stat_belum_2th(),
 ];
 foreach ($no_sheets as $title => $rows) {
     $data = []; $no = 1;

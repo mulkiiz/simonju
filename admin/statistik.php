@@ -309,11 +309,9 @@ $cg_str = $cg ? implode(',', $cg) : '#eef1f5 0% 100%';
 // =========================================================
 require_once __DIR__ . '/../includes/stat_analytics.php';
 [$cy, $cy1, $cy2] = stat_years();
-$top    = stat_top_artikel(20);
-$no_cy  = stat_tanpa_terbitan_tahun($cy);
-$no_cy1 = stat_tanpa_terbitan_tahun($cy1);
-$no_cy2 = stat_tanpa_terbitan_tahun($cy2);
-$no_3th = stat_tanpa_terbitan_3th();
+$top       = stat_top_artikel(20);
+$belum_cy  = stat_belum_cy_terakhir_cy1(); // belum 2026, terakhir 2025
+$belum_2th = stat_belum_2th();             // belum 2025 & 2026 (<=2024)
 
 // Badge akreditasi (sinta + scopus)
 function stat_badge_html($r) {
@@ -371,10 +369,8 @@ function stat_links_html($r) {
 
 <?php
 $blocks = [
-    ["Belum Ada Terbitan {$cy} (tahun berjalan)", $no_cy],
-    ["Belum Ada Terbitan {$cy1}", $no_cy1],
-    ["Belum Ada Terbitan {$cy2}", $no_cy2],
-    ["Tidak Ada Terbitan 3 Tahun Terakhir ({$cy2}–{$cy})", $no_3th],
+    ["Belum Terbit {$cy} (Tahun Berjalan) — Terbitan Terakhir {$cy1}", $belum_cy],
+    ["Belum Terbit 2 Tahun Terakhir (sejak {$cy2} ke bawah)", $belum_2th],
 ];
 foreach ($blocks as [$judul, $rows]):
 ?>
