@@ -3,6 +3,7 @@ deployment:
     - export DEPLOYPATH=/home/jurz2196/public_html/ppj.jurnalsinta.id
 
     # Pastikan semua folder target ada
+    - /bin/mkdir -p $DEPLOYPATH/api
     - /bin/mkdir -p $DEPLOYPATH/admin
     - /bin/mkdir -p $DEPLOYPATH/assets
     - /bin/mkdir -p $DEPLOYPATH/cron
@@ -14,6 +15,7 @@ deployment:
     - /bin/mkdir -p $DEPLOYPATH/uploads
 
     # Copy isi folder (config.php tidak ikut karena di-gitignore)
+    - /bin/cp -R api/*         $DEPLOYPATH/api/
     - /bin/cp -R admin/*       $DEPLOYPATH/admin/
     - /bin/cp -R assets/*      $DEPLOYPATH/assets/
     - /bin/cp -R cron/*        $DEPLOYPATH/cron/
