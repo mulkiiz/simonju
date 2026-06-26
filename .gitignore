@@ -58,3 +58,5 @@ temp/
 AGENTS.md
 skills-lock.json
 .claude/
+# Folder staging upload manual rju (artifact, regen via build_rju.sh)
+/rju/
