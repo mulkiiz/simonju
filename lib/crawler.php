@@ -123,6 +123,15 @@ function http_get_curl($url) {
     return $resp;
 }
 
+/**
+ * User-Agent meniru browser. Banyak server jurnal (WAF/Cloudflare/
+ * mod_security) memblok UA bot dengan HTTP 403; UA browser lolos.
+ */
+function crawler_ua() {
+    return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+         . '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+}
+
 function http_get_curl_attempt($url, $caBundle, $verify = true) {
     $ch = curl_init();
     curl_setopt_array($ch, [
@@ -132,7 +141,11 @@ function http_get_curl_attempt($url, $caBundle, $verify = true) {
         CURLOPT_MAXREDIRS      => 5,
         CURLOPT_TIMEOUT        => CRAWLER_TIMEOUT,
         CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_USERAGENT      => CRAWLER_USER_AGENT,
+        CURLOPT_USERAGENT      => crawler_ua(),
+        CURLOPT_HTTPHEADER     => [
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language: id,en;q=0.8',
+        ],
         CURLOPT_SSL_VERIFYPEER => $verify,
         CURLOPT_SSL_VERIFYHOST => $verify ? 2 : 0,
         CURLOPT_ENCODING       => '',
@@ -192,7 +205,8 @@ function http_get_stream_attempt($url, $caBundle, $verify = true) {
             'timeout'         => CRAWLER_TIMEOUT,
             'follow_location' => 1,
             'max_redirects'   => 5,
-            'header'          => "User-Agent: " . CRAWLER_USER_AGENT . "\r\n",
+            'header'          => "User-Agent: " . crawler_ua() . "\r\n"
+                               . "Accept-Language: id,en;q=0.8\r\n",
             'ignore_errors'   => true, // tetap ambil body walau status 4xx/5xx
         ],
         'ssl' => $sslOpts,
@@ -260,15 +274,24 @@ function parse_ojs_archive($html, $base_url) {
             $issues[] = build_issue_record($title, $series, $url);
         }
     } else {
-        // OJS 2.x fallback: links berisi /issue/view/
-        $links = $xpath->query("//a[contains(@href,'/issue/view/')]");
-        $seen = [];
+        // OJS 2.x fallback: clean-URL (/issue/view/) ATAU query-style
+        // (index.php?...page=issue&op=view&path[]=N).
+        $links = $xpath->query(
+            "//a[contains(@href,'/issue/view/') or "
+          . "(contains(@href,'op=view') and contains(@href,'page=issue'))]"
+        );
+        // Tiap issue punya >1 link dengan href sama (cover tanpa teks +
+        // link judul). Kelompokkan per href, pilih teks judul yang ada.
+        $byHref = [];
         foreach ($links as $a) {
-            $href = $a->getAttribute('href');
-            if (isset($seen[$href])) continue;
-            $seen[$href] = true;
+            $href  = $a->getAttribute('href');
             $title = trim($a->textContent);
-            if ($title === '') continue;
+            if (!array_key_exists($href, $byHref) || ($byHref[$href] === '' && $title !== '')) {
+                $byHref[$href] = $title;
+            }
+        }
+        foreach ($byHref as $href => $title) {
+            if ($title === '') continue; // tak ada judul -> tak bisa ekstrak vol/no
             $issues[] = build_issue_record($title, '', $href);
         }
     }
@@ -395,12 +418,22 @@ function count_articles_on_issue_page($issue_url) {
     $count = $xpath->query("//div[contains(@class,'obj_article_summary')]")->length;
     if ($count > 0) return $count;
 
-    // OJS 2.x: link ke /article/view/
-    $links = $xpath->query("//a[contains(@href,'/article/view/')]");
+    // OJS 2.x: clean-URL (/article/view/N) ATAU query-style
+    // (index.php?...page=article&op=view&path[]=N).
+    $links = $xpath->query(
+        "//a[contains(@href,'/article/view/') or "
+      . "(contains(@href,'op=view') and contains(@href,'page=article'))]"
+    );
     $unique = [];
     foreach ($links as $a) {
-        $href = preg_replace('~/[0-9]+$~', '', $a->getAttribute('href'));
-        $unique[$href] = true;
+        $href = $a->getAttribute('href');
+        if (preg_match('~path(?:%5B%5D|\[\])=([0-9]+)~i', $href, $m)) {
+            // query-style: dedup berdasarkan id artikel pertama
+            $unique['a' . $m[1]] = true;
+        } else {
+            // clean-URL: buang galley id di ekor (/article/view/123/456)
+            $unique[preg_replace('~/[0-9]+$~', '', $href)] = true;
+        }
     }
     return count($unique);
 }
