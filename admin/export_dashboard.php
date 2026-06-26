@@ -95,11 +95,11 @@ foreach ($sheets as $title => $where) {
 [$cy, $cy1, $cy2] = stat_years();
 
 // Top artikel 3 tahun
-$h_top = ['No', 'Nama Jurnal', 'Akreditasi', "Terbitan ({$cy2}-{$cy})", "Artikel ({$cy2}-{$cy})", 'URL Portal', 'Link Sinta'];
+$h_top = ['No', 'Nama Jurnal', 'Akreditasi', 'Vol. Terkini', "Terbitan ({$cy2}-{$cy})", "Artikel ({$cy2}-{$cy})", 'URL Portal', 'Link Sinta'];
 $d_top = []; $no = 1;
 foreach (stat_top_artikel(100) as $r) {
     $d_top[] = [
-        $no++, $r['nama_jurnal'] ?? '', stat_akr_text($r),
+        $no++, $r['nama_jurnal'] ?? '', stat_akr_text($r), stat_cur_vol_text($r),
         (int)$r['issues'], (int)$r['artikel'],
         $r['url_archive'] ?? '', $r['link_sinta'] ?? '',
     ];
@@ -107,7 +107,7 @@ foreach (stat_top_artikel(100) as $r) {
 $xlsx->addSheet('Top Artikel 3Th', $h_top, $d_top);
 
 // Belum ada terbitan per tahun + 3 tahun
-$h_no = ['No', 'Nama Jurnal', 'Akreditasi', 'Crawl Terakhir', 'URL Portal', 'Link Sinta'];
+$h_no = ['No', 'Nama Jurnal', 'Akreditasi', 'Vol. Terkini', 'Crawl Terakhir', 'URL Portal', 'Link Sinta'];
 $no_sheets = [
     "Belum Terbit {$cy}"  => stat_tanpa_terbitan_tahun($cy),
     "Belum Terbit {$cy1}" => stat_tanpa_terbitan_tahun($cy1),
@@ -118,7 +118,7 @@ foreach ($no_sheets as $title => $rows) {
     $data = []; $no = 1;
     foreach ($rows as $r) {
         $data[] = [
-            $no++, $r['nama_jurnal'] ?? '', stat_akr_text($r),
+            $no++, $r['nama_jurnal'] ?? '', stat_akr_text($r), stat_cur_vol_text($r),
             $r['last_crawled_at'] ?? '', $r['url_archive'] ?? '', $r['link_sinta'] ?? '',
         ];
     }

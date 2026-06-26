@@ -14,8 +14,27 @@ function stat_years() {
 
 /** Kolom jurnal yang dipakai semua query analitik. */
 function stat_jurnal_cols() {
+    // cur_issue = terbitan TERBARU jurnal (vol|nomor|tahun), diurutkan
+    // tahun lalu volume lalu nomor menurun.
     return "j.id, j.nama_jurnal, j.akreditasi_jenis, j.akreditasi_peringkat,
-            j.is_scopus, j.scopus_q, j.url_archive, j.link_sinta, j.last_crawled_at";
+            j.is_scopus, j.scopus_q, j.url_archive, j.link_sinta, j.last_crawled_at,
+            (SELECT CONCAT_WS('|', t2.volume, t2.nomor, t2.tahun)
+               FROM terbitan t2 WHERE t2.jurnal_id = j.id
+              ORDER BY CAST(t2.tahun AS UNSIGNED) DESC,
+                       CAST(t2.volume AS UNSIGNED) DESC,
+                       CAST(t2.nomor AS UNSIGNED) DESC
+              LIMIT 1) AS cur_issue";
+}
+
+/** Format volume terkini -> 'Vol X No Y (YYYY)' atau '—'. */
+function stat_cur_vol_text($r) {
+    $raw = trim((string)($r['cur_issue'] ?? ''));
+    if ($raw === '' || $raw === '||') return '—';
+    [$v, $n, $th] = array_pad(explode('|', $raw), 3, '');
+    $out = 'Vol ' . ($v !== '' ? $v : '?');
+    $out .= ' No ' . ($n !== '' ? $n : '?');
+    if ($th !== '') $out .= ' (' . $th . ')';
+    return $out;
 }
 
 /**

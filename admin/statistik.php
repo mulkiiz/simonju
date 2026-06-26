@@ -350,19 +350,20 @@ function stat_links_html($r) {
   <p class="prof-sub">Total artikel & terbitan dalam 3 tahun terakhir. Klik ikon: 📄 detail · 🌐 portal jurnal · 🏅 Sinta.</p>
   <div class="table-wrap">
   <table class="table">
-    <thead><tr><th>#</th><th>Jurnal</th><th>Akreditasi</th><th class="num">Terbitan</th><th class="num">Artikel</th><th>Tautan</th></tr></thead>
+    <thead><tr><th>#</th><th>Jurnal</th><th>Akreditasi</th><th>Vol. Terkini</th><th class="num">Terbitan</th><th class="num">Artikel</th><th>Tautan</th></tr></thead>
     <tbody>
     <?php $no=1; foreach ($top as $r): ?>
       <tr>
         <td><?= $no++ ?></td>
         <td><a href="jurnal_view.php?id=<?= (int)$r['id'] ?>"><?= h($r['nama_jurnal']) ?></a></td>
         <td><?= stat_badge_html($r) ?></td>
+        <td class="small"><?= h(stat_cur_vol_text($r)) ?></td>
         <td class="num"><?= (int)$r['issues'] ?></td>
         <td class="num"><strong><?= (int)$r['artikel'] ?></strong></td>
         <td class="small"><?= stat_links_html($r) ?></td>
       </tr>
     <?php endforeach; ?>
-    <?php if (empty($top)): ?><tr><td colspan="6" class="muted">Belum ada data terbitan 3 tahun terakhir.</td></tr><?php endif; ?>
+    <?php if (empty($top)): ?><tr><td colspan="7" class="muted">Belum ada data terbitan 3 tahun terakhir.</td></tr><?php endif; ?>
     </tbody>
   </table>
   </div>
@@ -384,18 +385,19 @@ foreach ($blocks as [$judul, $rows]):
   </div>
   <div class="table-wrap">
   <table class="table">
-    <thead><tr><th>#</th><th>Jurnal</th><th>Akreditasi</th><th>Crawl Terakhir</th><th>Tautan</th></tr></thead>
+    <thead><tr><th>#</th><th>Jurnal</th><th>Akreditasi</th><th>Vol. Terkini</th><th>Crawl Terakhir</th><th>Tautan</th></tr></thead>
     <tbody>
     <?php $no=1; foreach ($rows as $r): ?>
       <tr>
         <td><?= $no++ ?></td>
         <td><a href="jurnal_view.php?id=<?= (int)$r['id'] ?>"><?= h($r['nama_jurnal']) ?></a></td>
         <td><?= stat_badge_html($r) ?></td>
+        <td class="small"><?= h(stat_cur_vol_text($r)) ?></td>
         <td class="small muted"><?= h($r['last_crawled_at'] ?: '—') ?></td>
         <td class="small"><?= stat_links_html($r) ?></td>
       </tr>
     <?php endforeach; ?>
-    <?php if (empty($rows)): ?><tr><td colspan="5" class="muted">Tidak ada — semua jurnal punya terbitan.</td></tr><?php endif; ?>
+    <?php if (empty($rows)): ?><tr><td colspan="6" class="muted">Tidak ada — semua jurnal punya terbitan.</td></tr><?php endif; ?>
     </tbody>
   </table>
   </div>
