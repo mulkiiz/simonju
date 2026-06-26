@@ -303,4 +303,103 @@ $cg_str = $cg ? implode(',', $cg) : '#eef1f5 0% 100%';
 
 </div>
 
+<?php
+// =========================================================
+// Analitik produktivitas (3 tahun terakhir)
+// =========================================================
+require_once __DIR__ . '/../includes/stat_analytics.php';
+[$cy, $cy1, $cy2] = stat_years();
+$top    = stat_top_artikel(20);
+$no_cy  = stat_tanpa_terbitan_tahun($cy);
+$no_cy1 = stat_tanpa_terbitan_tahun($cy1);
+$no_cy2 = stat_tanpa_terbitan_tahun($cy2);
+$no_3th = stat_tanpa_terbitan_3th();
+
+// Badge akreditasi (sinta + scopus)
+function stat_badge_html($r) {
+    $out = '';
+    if (($r['akreditasi_jenis'] ?? '') === 'sinta' && trim((string)$r['akreditasi_peringkat']) !== '') {
+        $cls = 'akr-sinta-' . preg_replace('/[^0-9]/', '', $r['akreditasi_peringkat']);
+        $out .= '<span class="akr-badge ' . h($cls) . '">' . h($r['akreditasi_peringkat']) . '</span> ';
+    }
+    if ((int)($r['is_scopus'] ?? 0) === 1) {
+        $q = trim((string)($r['scopus_q'] ?? ''));
+        $out .= '<span class="akr-badge akr-scopus-blue">Scopus' . ($q !== '' ? ' ' . h($q) : '') . '</span>';
+    }
+    if ($out === '') $out = '<span class="akr-badge akr-belum">Belum</span>';
+    return $out;
+}
+// Link: detail internal, portal asli (url_archive), index Sinta
+function stat_links_html($r) {
+    $out = '<a href="jurnal_view.php?id=' . (int)$r['id'] . '" class="btn btn-sm" title="Detail">📄</a> ';
+    if (!empty($r['url_archive'])) {
+        $out .= '<a href="' . h($r['url_archive']) . '" target="_blank" rel="noopener" class="btn btn-sm" title="Portal jurnal">🌐</a> ';
+    }
+    if (!empty($r['link_sinta'])) {
+        $out .= '<a href="' . h($r['link_sinta']) . '" target="_blank" rel="noopener" class="btn btn-sm" title="Sinta">🏅</a>';
+    }
+    return $out;
+}
+?>
+
+<div class="section-card">
+  <div class="prof-head">
+    <span style="font-size:1.15rem">🏆</span>
+    <h3>Jurnal Paling Produktif (<?= $cy2 ?>–<?= $cy ?>)</h3>
+  </div>
+  <p class="prof-sub">Total artikel & terbitan dalam 3 tahun terakhir. Klik ikon: 📄 detail · 🌐 portal jurnal · 🏅 Sinta.</p>
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>#</th><th>Jurnal</th><th>Akreditasi</th><th class="num">Terbitan</th><th class="num">Artikel</th><th>Tautan</th></tr></thead>
+    <tbody>
+    <?php $no=1; foreach ($top as $r): ?>
+      <tr>
+        <td><?= $no++ ?></td>
+        <td><a href="jurnal_view.php?id=<?= (int)$r['id'] ?>"><?= h($r['nama_jurnal']) ?></a></td>
+        <td><?= stat_badge_html($r) ?></td>
+        <td class="num"><?= (int)$r['issues'] ?></td>
+        <td class="num"><strong><?= (int)$r['artikel'] ?></strong></td>
+        <td class="small"><?= stat_links_html($r) ?></td>
+      </tr>
+    <?php endforeach; ?>
+    <?php if (empty($top)): ?><tr><td colspan="6" class="muted">Belum ada data terbitan 3 tahun terakhir.</td></tr><?php endif; ?>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<?php
+$blocks = [
+    ["Belum Ada Terbitan {$cy} (tahun berjalan)", $no_cy],
+    ["Belum Ada Terbitan {$cy1}", $no_cy1],
+    ["Belum Ada Terbitan {$cy2}", $no_cy2],
+    ["Tidak Ada Terbitan 3 Tahun Terakhir ({$cy2}–{$cy})", $no_3th],
+];
+foreach ($blocks as [$judul, $rows]):
+?>
+<div class="section-card">
+  <div class="prof-head">
+    <span style="font-size:1.15rem">⚠️</span>
+    <h3><?= h($judul) ?> <span class="muted" style="font-weight:400">(<?= count($rows) ?>)</span></h3>
+  </div>
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>#</th><th>Jurnal</th><th>Akreditasi</th><th>Crawl Terakhir</th><th>Tautan</th></tr></thead>
+    <tbody>
+    <?php $no=1; foreach ($rows as $r): ?>
+      <tr>
+        <td><?= $no++ ?></td>
+        <td><a href="jurnal_view.php?id=<?= (int)$r['id'] ?>"><?= h($r['nama_jurnal']) ?></a></td>
+        <td><?= stat_badge_html($r) ?></td>
+        <td class="small muted"><?= h($r['last_crawled_at'] ?: '—') ?></td>
+        <td class="small"><?= stat_links_html($r) ?></td>
+      </tr>
+    <?php endforeach; ?>
+    <?php if (empty($rows)): ?><tr><td colspan="5" class="muted">Tidak ada — semua jurnal punya terbitan.</td></tr><?php endif; ?>
+    </tbody>
+  </table>
+  </div>
+</div>
+<?php endforeach; ?>
+
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
