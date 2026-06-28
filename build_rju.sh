@@ -14,6 +14,7 @@ lib/crawler.php
 lib/feeder.php
 cron/run.php
 includes/header_admin.php
+includes/header_jurnal.php
 includes/stat_analytics.php
 includes/cacert.pem
 admin/statistik.php

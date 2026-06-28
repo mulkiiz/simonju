@@ -73,11 +73,27 @@ $total_issues   = count($terbitan);
 $total_articles = 0;
 foreach ($by_year as $y => $v) $total_articles += $v['articles'];
 
-$max_issues = 0;
-$max_articles = 0;
-foreach ($by_year as $v) {
-    if ($v['issues']   > $max_issues)   $max_issues   = $v['issues'];
-    if ($v['articles'] > $max_articles) $max_articles = $v['articles'];
+// Chart: tiap nomor/issue terbitan = 1 bar (dikelompokkan per tahun).
+$issues_by_year = [];
+foreach ($terbitan as $t) {
+    $y = $t['tahun'] !== '' ? $t['tahun'] : 'N/A';
+    $issues_by_year[$y][] = [
+        'vol'   => trim((string)$t['volume']),
+        'nomor' => trim((string)$t['nomor']),
+        'art'   => (int)$t['jumlah_artikel'],
+    ];
+}
+foreach ($issues_by_year as $y => &$list) {
+    usort($list, function($a, $b) {
+        $va = (int)$a['vol']; $vb = (int)$b['vol'];
+        if ($va !== $vb) return $va <=> $vb;
+        return (int)$a['nomor'] <=> (int)$b['nomor'];
+    });
+}
+unset($list);
+$max_issue_articles = 0;
+foreach ($issues_by_year as $list) {
+    foreach ($list as $it) if ($it['art'] > $max_issue_articles) $max_issue_articles = $it['art'];
 }
 
 $upload_base = '../uploads/jurnal/';
@@ -230,26 +246,8 @@ $upload_base = '../uploads/jurnal/';
 
   <!-- STATUS SCAN JUDOL -->
   <div class="card">
-    <h3>🛡️ Scan Judol</h3>
-    <dl>
-      <dt>🕐 Terakhir</dt>
-      <dd><?= h($j['last_judol_scan_at'] ?: '—') ?></dd>
-
-      <dt>📊 Skor</dt>
-      <dd>
-        <?php if ($j['last_judol_scan_at']):
-          $jsc = (int)$j['last_judol_score'];
-          $jlb = $j['last_judol_label'] ?? '—';
-          $jcls = 'badge-success';
-          if ($jsc >= 50) $jcls = 'badge-failed';
-          elseif ($jsc >= 25) $jcls = 'badge-partial';
-        ?>
-          <span class="badge <?= $jcls ?>"><?= $jsc ?>/100 — <?= h($jlb) ?></span>
-        <?php else: ?>
-          <span class="muted">belum pernah</span>
-        <?php endif; ?>
-      </dd>
-    </dl>
+    <h3>🛡️ Scan Judol <span class="badge badge-partial" style="font-size:.65rem;vertical-align:middle">Coming soon</span></h3>
+    <p class="muted small" style="margin:6px 0 0">Fitur deteksi injeksi judi online sedang disiapkan.</p>
   </div>
 
 </section>
@@ -397,35 +395,38 @@ $upload_base = '../uploads/jurnal/';
 
   <div class="chart-card">
     <div class="chart-legend">
-      <span class="legend-item"><span class="legend-swatch sw-issues"></span> Jumlah Issue</span>
-      <span class="legend-item"><span class="legend-swatch sw-articles"></span> Jumlah Artikel</span>
+      <span class="legend-item"><span class="legend-swatch sw-articles"></span> Jumlah artikel per nomor terbit</span>
     </div>
 
+    <?php
+      $palette = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4',
+                  '#ec4899','#84cc16'];
+    ?>
     <div class="bar-chart" id="barChart">
       <?php foreach ($years_sorted as $y):
-        $iss = $by_year[$y]['issues'];
-        $art = $by_year[$y]['articles'];
-        $h_iss = $max_issues   > 0 ? round($iss / $max_issues   * 100) : 0;
-        $h_art = $max_articles > 0 ? round($art / $max_articles * 100) : 0;
+        $list = $issues_by_year[$y];
       ?>
       <div class="bar-group" data-year="<?= h($y) ?>" role="button" tabindex="0"
            title="Klik untuk filter tahun <?= h($y) ?>">
         <div class="bars">
-          <div class="bar bar-issues"   style="height: <?= $h_iss ?>%"
-               data-value="<?= $iss ?>" title="Issue: <?= $iss ?>">
-            <span class="bar-label"><?= $iss ?></span>
+          <?php foreach ($list as $i => $it):
+            $art = $it['art'];
+            $h_art = $max_issue_articles > 0 ? round($art / $max_issue_articles * 100) : 0;
+            $color = $palette[$i % count($palette)];
+            $titleTxt = 'Vol ' . ($it['vol'] !== '' ? $it['vol'] : '?') . ' No ' . ($it['nomor'] !== '' ? $it['nomor'] : '?') . ' · ' . $art . ' artikel';
+          ?>
+          <div class="bar" style="height: <?= $h_art ?>%;background:<?= $color ?>;border-color:<?= $color ?>"
+               data-value="<?= $art ?>" title="<?= h($titleTxt) ?>">
+            <span class="bar-label"><?= (int)$art ?></span>
           </div>
-          <div class="bar bar-articles" style="height: <?= $h_art ?>%"
-               data-value="<?= $art ?>" title="Artikel: <?= $art ?>">
-            <span class="bar-label"><?= $art ?></span>
-          </div>
+          <?php endforeach; ?>
         </div>
         <div class="bar-year"><?= h($y) ?></div>
       </div>
       <?php endforeach; ?>
     </div>
 
-    <p class="muted small chart-hint">Klik bar / tahun pada grafik untuk filter, atau gunakan dropdown di atas.</p>
+    <p class="muted small chart-hint">Tiap bar = 1 nomor terbit (Vol·No). Klik tahun pada grafik untuk filter tabel, atau gunakan dropdown di atas.</p>
   </div>
 </section>
 
@@ -441,7 +442,6 @@ $upload_base = '../uploads/jurnal/';
         <tr>
           <th>Judul Issue</th>
           <th>Vol</th><th>No</th><th>Tahun</th>
-          <th>Pubdate</th>
           <th class="num">Artikel</th>
           <th>Crawled</th>
         </tr>
@@ -459,7 +459,6 @@ $upload_base = '../uploads/jurnal/';
           <td><?= h($t['volume']) ?></td>
           <td><?= h($t['nomor']) ?></td>
           <td><?= h($t['tahun']) ?></td>
-          <td><?= h($t['pubdate'] ?: '—') ?></td>
           <td class="num"><?= (int)$t['jumlah_artikel'] ?></td>
           <td class="muted small"><?= h($t['crawled_at']) ?></td>
         </tr>
@@ -527,7 +526,7 @@ $upload_base = '../uploads/jurnal/';
     var totalIssues = state.filteredRows.length;
     var totalArticles = 0;
     state.filteredRows.forEach(function (tr) {
-      totalArticles += parseInt(tr.cells[5].innerText, 10) || 0;
+      totalArticles += parseInt(tr.cells[4].innerText, 10) || 0;
     });
     document.getElementById('statIssues').innerText   = totalIssues;
     document.getElementById('statArticles').innerText = totalArticles;
