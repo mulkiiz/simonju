@@ -48,6 +48,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exec_q("DELETE FROM doi_article WHERE request_id=?", 'i', [$rid]);
         exec_q("DELETE FROM doi_request WHERE id=? AND jurnal_id=?", 'ii', [$rid, $jurnal_id]);
         $flash = 'Usulan dihapus.';
+
+    } elseif ($act === 'proses') {
+        // Skema 1: deposit langsung ke Crossref (web-service)
+        $req = fetch_one("SELECT xml_original, xml_fixed, name_mismatch, status FROM doi_request WHERE id=? AND jurnal_id=?", 'ii', [$rid, $jurnal_id]);
+        if (!$req) { $flash = 'Usulan tidak ditemukan.'; }
+        elseif ($req['name_mismatch']) { $flash = 'Crosscek belum sesuai. Perbaiki nama/revisi dulu sebelum Proses.'; }
+        else {
+            $xml = $req['xml_fixed'] ?: $req['xml_original'];
+            $res = doi_crossref_deposit($xml);
+            if ($res['ok']) {
+                exec_q("UPDATE doi_request SET status='deposited', admin_note=? WHERE id=?", 'si', [mb_substr($res['msg'],0,255), $rid]);
+            }
+            $flash = $res['msg'];
+        }
     }
 
     $_SESSION['doi_rflash'] = $flash;
@@ -135,14 +149,15 @@ $articles = $sel ? fetch_all("SELECT * FROM doi_article WHERE request_id=? ORDER
               // snippet tombol
               $btn_revisi = '<form method="post" style="display:inline">'.csrf_field().'<input type="hidden" name="act" value="minta_revisi"><input type="hidden" name="request_id" value="'.(int)$rr['id'].'"><button class="btn btn-sm btn-edit" type="submit" title="Minta jurnal unggah revisi">✏️ Minta Revisi</button></form>';
               $btn_hapus  = '<form method="post" style="display:inline" onsubmit="return confirm(\'Hapus usulan ini?\')">'.csrf_field().'<input type="hidden" name="act" value="delete_request"><input type="hidden" name="request_id" value="'.(int)$rr['id'].'"><button class="btn btn-sm btn-danger" type="submit">🗑️ Hapus Usulan</button></form>';
-              $btn_update = '<form method="post" style="display:inline">'.csrf_field().'<input type="hidden" name="act" value="update_status"><input type="hidden" name="request_id" value="'.(int)$rr['id'].'"><button class="btn btn-sm" type="submit" title="Cek status DOI ke Crossref">🔄 Update Status</button></form>';
+              $btn_update = '<form method="post" style="display:inline">'.csrf_field().'<input type="hidden" name="act" value="update_status"><input type="hidden" name="request_id" value="'.(int)$rr['id'].'"><button class="btn btn-sm" type="submit" title="Cek status DOI ke Crossref (proses manual di luar sistem)">🔄 Update Status</button></form>';
+              $btn_proses = '<form method="post" style="display:inline" onsubmit="return confirm(\'Proses DEPOSIT langsung ke Crossref sekarang? Aksi ini mendaftarkan DOI secara nyata.\')">'.csrf_field().'<input type="hidden" name="act" value="proses"><input type="hidden" name="request_id" value="'.(int)$rr['id'].'"><button class="btn btn-sm btn-primary" type="submit" title="Deposit XML langsung ke Crossref">🚀 Proses</button></form>';
             ?>
             <?php if ($rr['status'] === 'revisi'): ?>
             <?php elseif ($rr['status'] === 'deposited'): /* Failed: belum semua aktif */ ?>
               <?= $btn_update . ' ' . $btn_revisi . ' ' . $btn_hapus ?>
             <?php elseif ($rr['status'] === 'done'): ?>
             <?php elseif ($sesuai): ?>
-              <?= $btn_update ?>
+              <?= $btn_proses . ' ' . $btn_update ?>
             <?php elseif ($reviewed && $rr['name_mismatch']): ?>
               <?= $btn_revisi ?>
             <?php endif; ?>
