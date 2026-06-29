@@ -5,6 +5,8 @@ require_once __DIR__ . '/includes/auth.php';
 if (is_logged_in()) {
     if (is_jurnal_user()) {
         header('Location: jurnal/');
+    } elseif (is_doi_admin()) {
+        header('Location: admin/doi_requests.php');
     } else {
         header('Location: admin/');
     }
@@ -27,6 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($ok) {
             if ($result === 'jurnal') {
                 header('Location: jurnal/');
+            } elseif ($result === 'doi') {
+                header('Location: admin/doi_requests.php');
             } else {
                 header('Location: admin/');
             }

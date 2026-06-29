@@ -30,6 +30,21 @@ function is_jurnal_user() {
     return !empty($_SESSION['jurnal_id']);
 }
 
+/** Admin DOI Unsoed (role='doi'). */
+function is_doi_admin() {
+    return !empty($_SESSION['uid']) && ($_SESSION['role'] ?? '') === 'doi';
+}
+
+/** Halaman DOI boleh diakses admin biasa & admin DOI. */
+function require_doi() {
+    require_login();
+    $role = $_SESSION['role'] ?? '';
+    if (empty($_SESSION['uid']) || !in_array($role, ['admin', 'doi'], true)) {
+        header('Location: ' . app_url('/jurnal/'));
+        exit;
+    }
+}
+
 function current_jurnal_id() {
     return (int)($_SESSION['jurnal_id'] ?? 0);
 }
@@ -148,7 +163,7 @@ function attempt_login($username, $password) {
         $_SESSION['uname'] = $user['username'];
         $_SESSION['role']  = $user['role'] ?? 'admin';
         $_SESSION['last_activity'] = time();
-        return [true, 'admin'];
+        return [true, $user['role'] ?? 'admin'];
     }
 
     // --- 2. Cek tabel jurnal_accounts (password bcrypt di password_hash) ---

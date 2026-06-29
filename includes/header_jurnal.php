@@ -30,6 +30,7 @@ $_jnama = $_SESSION['jurnal_nama'] ?? 'Jurnal';
     </div>
     <nav class="nav">
       <a href="index.php">📋 Dashboard</a>
+      <a href="doi.php">🔗 DOI</a>
       <a href="edit.php">✏️ Edit Data</a>
       <a href="../logout.php" class="logout">🚪 Log out</a>
     </nav>
