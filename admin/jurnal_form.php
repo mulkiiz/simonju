@@ -240,23 +240,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <input type="text" name="nama_jurnal" value="<?= h($data['nama_jurnal']) ?>" required>
     </label>
     <label>Unit Kerja Pengelola
-      <input type="text" name="unit_kerja" value="<?= h($data['unit_kerja']) ?>"
-             placeholder="contoh: Fakultas Hukum (FH) / LPPM">
+      <select name="unit_kerja">
+        <option value="">— Pilih Unit Kerja —</option>
+        <?php
+          $uk_list = [
+            'Fakultas Pertanian (Faperta)', 'Fakultas Biologi (Fabio)',
+            'Fakultas Ekonomi dan Bisnis (FEB)', 'Fakultas Peternakan (Fapet)',
+            'Fakultas Hukum (FH)', 'Fakultas Ilmu Sosial dan Ilmu Politik (FISIP)',
+            'Fakultas Kedokteran (FK)', 'Fakultas Teknik (FT)',
+            'Fakultas Ilmu-Ilmu Kesehatan (FIKES)', 'Fakultas Ilmu Budaya (FIB)',
+            'Fakultas Matematika dan Ilmu Pengetahuan Alam (FMIPA)',
+            'Fakultas Perikanan dan Ilmu Kelautan (FPIK)', 'LPPM', 'Unit kerja lainnya',
+          ];
+          $cur_uk = $data['unit_kerja'];
+          if ($cur_uk !== '' && !in_array($cur_uk, $uk_list, true)) array_unshift($uk_list, $cur_uk);
+          foreach ($uk_list as $uk):
+        ?>
+          <option value="<?= h($uk) ?>" <?= $cur_uk === $uk ? 'selected' : '' ?>><?= h($uk) ?></option>
+        <?php endforeach; ?>
+      </select>
     </label>
     <label>URL Archive (halaman issue/archive) *
       <input type="url" name="url_archive" value="<?= h($data['url_archive']) ?>"
              placeholder="https://jos.unsoed.ac.id/index.php/JIM/issue/archive" required>
     </label>
-    <div class="row-2">
-      <label>Frekuensi Terbit
-        <input type="text" name="frekuensi_terbit" value="<?= h($data['frekuensi_terbit']) ?>"
-               placeholder="contoh: 2 kali setahun (Juni & Desember)">
-      </label>
-      <label>Volume Terbit per Tahun
-        <input type="text" name="volume_per_tahun" value="<?= h($data['volume_per_tahun']) ?>"
-               placeholder="contoh: 2">
-      </label>
-    </div>
+    <label>Volume Terbit per Tahun <span class="muted small">(berapa kali terbit dalam setahun)</span>
+      <input type="text" name="volume_per_tahun" value="<?= h($data['volume_per_tahun']) ?>"
+             placeholder="contoh: 2">
+    </label>
+    <!-- Frekuensi terbit dihapus (sama dengan Volume per Tahun); kolom lama dipertahankan tersembunyi -->
+    <input type="hidden" name="frekuensi_terbit" value="<?= h($data['frekuensi_terbit']) ?>">
     <label>APC (Article Processing Charge) <span class="muted small">(angka saja, kosongkan bila tidak ada)</span>
       <input type="text" name="apc" value="<?= h($data['apc']) ?>"
              placeholder="contoh: 500000">
@@ -285,6 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <legend>Akreditasi / Indeksasi</legend>
     <p class="muted small" style="margin:0 0 10px">
       Centang sesuai status. Sebuah jurnal bisa <strong>terakreditasi Sinta</strong> sekaligus <strong>terindeks Scopus</strong>.
+      <br><em>Abaikan (jangan dicentang) jika belum terakreditasi.</em>
     </p>
 
     <!-- SINTA -->

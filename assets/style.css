@@ -55,8 +55,9 @@ h2{font-size:18px;margin:24px 0 12px}
 .form-grid input[type=email],
 .form-grid input[type=url],
 .form-grid input[type=password],
-.form-grid textarea{width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:14px;font-family:inherit;margin-top:4px}
-.form-grid input:focus,.form-grid textarea:focus{outline:none;border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.15)}
+.form-grid select,
+.form-grid textarea{width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:14px;font-family:inherit;margin-top:4px;background:#fff}
+.form-grid input:focus,.form-grid select:focus,.form-grid textarea:focus{outline:none;border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.15)}
 .row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 @media(max-width:640px){.row-2,.row-3{grid-template-columns:1fr}}
