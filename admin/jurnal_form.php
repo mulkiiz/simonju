@@ -161,6 +161,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $jid = $id;
         } else {
+            // Jurnal baru via admin: langsung terkonfirmasi + buat token
+            // sebagai password awal akun login.
+            $konf_token = bin2hex(random_bytes(8)); // 16 char
             $r = exec_q(
                 "INSERT INTO jurnals
                     (nama_jurnal, unit_kerja, url_archive,
@@ -168,21 +171,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      doi, issn, p_issn, e_issn,
                      akreditasi_jenis, akreditasi_peringkat, akreditasi_url,
                      is_scopus, scopus_q, scopus_url,
-                     link_gscholar, link_garuda, link_editor, link_sinta)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                'sssssssssssssissssss',
+                     link_gscholar, link_garuda, link_editor, link_sinta,
+                     konfirmasi_status, konfirmasi_token, konfirmasi_at)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'terkonfirmasi',?,NOW())",
+                'sssssssssssssisssssss',
                 [$data['nama_jurnal'], $data['unit_kerja'], $data['url_archive'],
                  $data['frekuensi_terbit'], $data['volume_per_tahun'], $data['apc'],
                  $data['doi'], $data['issn'], $data['p_issn'], $data['e_issn'],
                  $data['akreditasi_jenis'], $data['akreditasi_peringkat'], $data['akreditasi_url'],
                  $data['is_scopus'], $data['scopus_q'], $data['scopus_url'],
-                 $data['link_gscholar'], $data['link_garuda'], $data['link_editor'], $data['link_sinta']]
+                 $data['link_gscholar'], $data['link_garuda'], $data['link_editor'], $data['link_sinta'],
+                 $konf_token]
             );
             $jid = (int)$r['insert_id'];
-            // Jurnal baru via admin: pastikan akun login dibuat juga,
-            // agar tidak ada jurnal tanpa akun (konsisten di menu Akun).
+            // Buat akun login dengan password awal = token.
             if (function_exists('ensure_jurnal_account')) {
-                ensure_jurnal_account($jid, $data['link_editor'] ?: null);
+                ensure_jurnal_account($jid, $data['link_editor'] ?: null, $konf_token);
             }
         }
 
