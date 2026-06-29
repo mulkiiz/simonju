@@ -1,6 +1,6 @@
 <?php
 $allow_doi = true;
-$page_title = 'Rekues DOI';
+$page_title = 'Usulan Aktivasi DOI';
 require_once __DIR__ . '/../includes/header_admin.php';
 
 // Kelompokkan per jurnal
@@ -17,11 +17,11 @@ $rows = fetch_all(
 );
 ?>
 <div class="page-head">
-  <h1>🔗 Rekues DOI</h1>
+  <h1>🔗 Usulan Aktivasi DOI</h1>
 </div>
 
 <?php if (empty($rows)): ?>
-  <p class="muted">Belum ada rekues DOI.</p>
+  <p class="muted">Belum ada usulan DOI.</p>
 <?php else: ?>
 <div class="table-wrap">
 <table class="table">

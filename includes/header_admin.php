@@ -30,7 +30,7 @@ $body_class = $body_class ?? '';
     </div>
     <nav class="nav">
       <?php if (is_doi_admin()): ?>
-        <a href="doi_requests.php">🔗 Rekues DOI</a>
+        <a href="doi_requests.php">🔗 Usulan DOI</a>
       <?php else: ?>
         <a href="dashboard.php">📋 Dashboard</a>
         <a href="statistik.php">📊 Statistik</a>
