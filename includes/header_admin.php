@@ -1,7 +1,8 @@
 <?php
 require_once __DIR__ . '/auth.php';
 // Halaman DOI set $allow_doi=true sebelum include -> boleh admin & admin DOI.
-if (!empty($allow_doi)) { require_doi(); } else { require_admin(); }
+if (!empty($allow_doi) && function_exists('require_doi')) { require_doi(); } else { require_admin(); }
+$_is_doi_admin = function_exists('is_doi_admin') && is_doi_admin();
 $page_title = $page_title ?? 'Dashboard';
 $body_class = $body_class ?? '';
 ?><!doctype html>
@@ -29,7 +30,7 @@ $body_class = $body_class ?? '';
       </a>
     </div>
     <nav class="nav">
-      <?php if (is_doi_admin()): ?>
+      <?php if ($_is_doi_admin): ?>
         <a href="doi_requests.php">🔗 Usulan DOI</a>
       <?php else: ?>
         <a href="dashboard.php">📋 Dashboard</a>
