@@ -12,6 +12,7 @@ deployment:
     - /bin/mkdir -p $DEPLOYPATH/jurnal
     - /bin/mkdir -p $DEPLOYPATH/konfirmasi
     - /bin/mkdir -p $DEPLOYPATH/lib
+    - /bin/mkdir -p $DEPLOYPATH/telegram
     - /bin/mkdir -p $DEPLOYPATH/uploads
 
     # Copy isi folder (config.php tidak ikut karena di-gitignore)
@@ -24,6 +25,7 @@ deployment:
     - /bin/cp -R jurnal/*      $DEPLOYPATH/jurnal/
     - /bin/cp -R konfirmasi/*  $DEPLOYPATH/konfirmasi/
     - /bin/cp -R lib/*         $DEPLOYPATH/lib/
+    - /bin/cp -R telegram/*    $DEPLOYPATH/telegram/
 
     # Copy file di root
     - /bin/cp index.php          $DEPLOYPATH/
