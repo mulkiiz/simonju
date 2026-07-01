@@ -109,6 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data['akreditasi_peringkat'] = '';
         $data['akreditasi_url']       = '';
     }
+    // link_sinta = URL Profil Sinta (satu sumber; dipakai bot/statistik)
+    $data['link_sinta'] = $data['akreditasi_url'];
     // Scopus -> is_scopus + scopus_q + scopus_url (kolom terpisah)
     $data['is_scopus']  = $scopus_on ? 1 : 0;
     $data['scopus_q']   = $scopus_on ? $scopus_q : '';
@@ -354,10 +356,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <fieldset>
     <legend>Tautan Pendukung</legend>
-    <label>Link Profil SINTA
-      <input type="url" name="link_sinta" value="<?= h($data['link_sinta']) ?>"
-             placeholder="https://sinta.kemdiktisaintek.go.id/journals/profile/...">
-    </label>
+    <!-- Link Profil SINTA dihapus: cukup diisi di "URL Profil Sinta"
+         pada bagian Akreditasi (saat status Sinta dicentang). -->
     <label>Link Google Scholar
       <input type="url" name="link_gscholar" value="<?= h($data['link_gscholar']) ?>"
              placeholder="https://scholar.google.com/citations?user=...">
