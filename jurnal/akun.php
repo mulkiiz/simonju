@@ -61,4 +61,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 </div>
 
+<?php
+// Riwayat login akun jurnal ini
+$uname = $ja['username'] ?? '';
+$logs = $uname !== ''
+    ? fetch_all("SELECT * FROM login_log WHERE username=? ORDER BY created_at DESC LIMIT 30", 's', [$uname])
+    : [];
+?>
+<div style="max-width:480px;margin-top:22px">
+  <div class="card" style="padding:24px">
+    <h3 style="margin:0 0 12px">🔑 Riwayat Login</h3>
+    <?php if (empty($logs)): ?>
+      <p class="muted small">Belum ada catatan login.</p>
+    <?php else: ?>
+    <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Waktu</th><th>IP</th><th>Hasil</th></tr></thead>
+      <tbody>
+      <?php foreach ($logs as $l): ?>
+        <tr>
+          <td class="small"><?= h($l['created_at']) ?></td>
+          <td class="small muted"><?= h($l['ip'] ?: '—') ?></td>
+          <td><?= $l['success'] ? '<span class="badge badge-success">sukses</span>' : '<span class="badge badge-failed">gagal</span>' ?></td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+    </div>
+    <?php endif; ?>
+  </div>
+</div>
+
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

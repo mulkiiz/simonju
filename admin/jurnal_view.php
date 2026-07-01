@@ -107,12 +107,14 @@ foreach ($issues_by_year as $list) {
       <input type="hidden" name="jurnal_id" value="<?= (int)$j['id'] ?>">
       <button class="btn btn-scan" type="submit">🛡️ Scan Judol</button>
     </form>
+    <?php if (is_admin()): ?>
     <form id="deleteJurnalForm" method="post" action="jurnal_delete.php" style="display:inline">
       <?= csrf_field() ?>
       <input type="hidden" name="jurnal_id" value="<?= (int)$j['id'] ?>">
       <input type="hidden" name="confirm_name" id="deleteConfirmName" value="">
       <button class="btn btn-danger" type="button" id="deleteJurnalBtn">🗑️ Hapus Jurnal</button>
     </form>
+    <?php endif; ?>
   </div>
 </div>
 

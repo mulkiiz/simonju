@@ -22,8 +22,19 @@ function is_logged_in() {
     return !empty($_SESSION['uid']) || !empty($_SESSION['jurnal_id']);
 }
 
+/** Admin penuh (boleh hapus & export). */
 function is_admin() {
     return !empty($_SESSION['uid']) && ($_SESSION['role'] ?? '') === 'admin';
+}
+
+/** Operator: mirip admin tapi TANPA aksi hapus / export. */
+function is_operator() {
+    return !empty($_SESSION['uid']) && ($_SESSION['role'] ?? '') === 'operator';
+}
+
+/** Boleh mengakses area admin (admin penuh atau operator). */
+function is_admin_area() {
+    return is_admin() || is_operator();
 }
 
 function is_jurnal_user() {
@@ -66,9 +77,18 @@ function require_login() {
 
 function require_admin() {
     require_login();
-    if (!is_admin()) {
+    if (!is_admin_area()) {
         header('Location: ' . app_url('/jurnal/'));
         exit;
+    }
+}
+
+/** Halaman aksi berbahaya (hapus / export) hanya untuk admin penuh. */
+function require_full_admin() {
+    require_login();
+    if (!is_admin()) {
+        http_response_code(403);
+        die('Akses ditolak. Hanya admin penuh yang boleh aksi ini.');
     }
 }
 

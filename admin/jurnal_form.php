@@ -402,13 +402,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Simpan</button>
     <a href="<?= $is_edit ? 'jurnal_view.php?id=' . (int)$id : 'dashboard.php' ?>" class="btn">Batal</a>
-    <?php if ($is_edit): ?>
+    <?php if ($is_edit && is_admin()): ?>
       <button type="button" class="btn btn-danger" id="deleteJurnalBtn">🗑️ Hapus Jurnal</button>
     <?php endif; ?>
   </div>
 </form>
 
-<?php if ($is_edit): ?>
+<?php if ($is_edit && is_admin()): ?>
 <!-- Form delete terpisah (tak boleh nested di dalam form edit) -->
 <form id="deleteJurnalForm" method="post" action="jurnal_delete.php" style="display:none">
   <?= csrf_field() ?>

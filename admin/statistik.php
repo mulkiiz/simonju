@@ -160,7 +160,9 @@ $cg_str = $cg ? implode(',', $cg) : '#eef1f5 0% 100%';
 <div class="page-head">
   <h1>📊 Statistik Jurnal</h1>
   <div class="page-head-actions">
-    <a href="export_dashboard.php" class="btn btn-export" title="Download XLSX lengkap">📥 Export XLSX</a>
+    <?php if (is_admin()): ?>
+      <a href="export_dashboard.php" class="btn btn-export" title="Download XLSX lengkap">📥 Export XLSX</a>
+    <?php endif; ?>
     <a href="dashboard.php" class="btn">&larr; Dashboard</a>
   </div>
 </div>

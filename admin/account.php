@@ -69,7 +69,17 @@ $admins = fetch_all("SELECT id, username, created_at FROM users ORDER BY id ASC"
 
 /* ── Tab aktif ─────────────────────────────────────── */
 $tab = ($_GET['tab'] ?? 'admin');
-if (!in_array($tab, ['admin', 'jurnal'])) $tab = 'admin';
+if (!in_array($tab, ['admin', 'jurnal', 'log'])) $tab = 'admin';
+
+/* Log login (untuk tab log) */
+$log_q = trim($_GET['lq'] ?? '');
+if (mb_strlen($log_q) > 50) $log_q = mb_substr($log_q, 0, 50);
+$login_logs = [];
+if ($tab === 'log') {
+    $login_logs = $log_q !== ''
+        ? fetch_all("SELECT * FROM login_log WHERE username LIKE ? ORDER BY created_at DESC LIMIT 300", 's', ['%'.$log_q.'%'])
+        : fetch_all("SELECT * FROM login_log ORDER BY created_at DESC LIMIT 300");
+}
 ?>
 
 <style>
@@ -176,6 +186,9 @@ if (!in_array($tab, ['admin', 'jurnal'])) $tab = 'admin';
   <a href="?tab=jurnal" class="<?= $tab==='jurnal'?'active':'' ?>">
     📋 Akun Jurnal <span class="tab-badge"><?= $total ?></span>
   </a>
+  <a href="?tab=log" class="<?= $tab==='log'?'active':'' ?>">
+    🔑 Log Login
+  </a>
 </div>
 
 <?php if ($tab === 'admin'): ?>
@@ -208,7 +221,7 @@ if (!in_array($tab, ['admin', 'jurnal'])) $tab = 'admin';
   </div>
 </form>
 
-<?php else: ?>
+<?php elseif ($tab === 'jurnal'): ?>
 <!-- ══════════════ TAB: AKUN JURNAL ══════════════ -->
 <div class="toolbar-row">
   <form class="search-bar" method="get" style="margin-bottom:0">
@@ -349,6 +362,44 @@ if (!in_array($tab, ['admin', 'jurnal'])) $tab = 'admin';
 <?php endif; ?>
 
 <?php endif; // empty check ?>
+
+<?php else: ?>
+<!-- ══════════════ TAB: LOG LOGIN ══════════════ -->
+<?php
+  $lsum = fetch_one("SELECT COUNT(*) AS total, SUM(success=1) AS ok, SUM(success=0) AS gagal
+                       FROM login_log WHERE created_at >= (NOW() - INTERVAL 24 HOUR)") ?: [];
+?>
+<p class="muted small">24 jam terakhir: <strong><?= (int)($lsum['total'] ?? 0) ?></strong> percobaan
+  · ✅ <?= (int)($lsum['ok'] ?? 0) ?> sukses · ❌ <?= (int)($lsum['gagal'] ?? 0) ?> gagal.</p>
+
+<form method="get" action="account.php" style="margin-bottom:12px">
+  <input type="hidden" name="tab" value="log">
+  <input type="text" name="lq" value="<?= h($log_q) ?>" placeholder="cari username..." style="padding:6px 10px;border:1px solid #d1d5db;border-radius:5px">
+  <button type="submit" class="btn btn-sm">Cari</button>
+  <?php if ($log_q !== ''): ?><a href="?tab=log" class="btn btn-sm">Reset</a><?php endif; ?>
+</form>
+
+<?php if (empty($login_logs)): ?>
+  <p class="muted">Belum ada catatan login.</p>
+<?php else: ?>
+<div class="table-wrap">
+<table class="tbl">
+  <thead><tr><th>Waktu</th><th>Username</th><th>IP</th><th>Hasil</th></tr></thead>
+  <tbody>
+  <?php foreach ($login_logs as $l): ?>
+    <tr>
+      <td class="small"><?= h($l['created_at']) ?></td>
+      <td class="mono"><?= h($l['username'] ?: '—') ?></td>
+      <td class="small muted"><?= h($l['ip'] ?: '—') ?></td>
+      <td><?= $l['success'] ? '<span class="badge badge-success">sukses</span>' : '<span class="badge badge-failed">gagal</span>' ?></td>
+    </tr>
+  <?php endforeach; ?>
+  </tbody>
+</table>
+</div>
+<p class="muted small" style="margin-top:8px">Maksimal 300 baris terbaru.</p>
+<?php endif; ?>
+
 <?php endif; // tab ?>
 
 <?php require_once __DIR__ . '/../includes/footer_admin.php'; ?>

@@ -50,8 +50,10 @@ admin/jurnal_delete.php
 admin/doi_requests.php
 admin/doi_review.php
 admin/doi_download.php
+admin/account.php
 jurnal/index.php
 jurnal/doi.php
+jurnal/akun.php
 konfirmasi/form.php
 konfirmasi/jurnal_baru.php
 "

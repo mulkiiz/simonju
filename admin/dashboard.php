@@ -236,8 +236,10 @@ function build_qs($override = []) {
 <div class="page-head">
   <h1>Daftar Jurnal</h1>
   <div class="page-head-actions">
-    <a href="export_dashboard.php" class="btn btn-export" title="Download XLSX semua filter">📥 Export XLSX</a>
-    <a href="export_katalog.php" target="_blank" class="btn btn-export" title="Katalog jurnal siap cetak / PDF" style="background:#f97316;color:#fff;border-color:#ea580c">📖 Export Katalog</a>
+    <?php if (is_admin()): ?>
+      <a href="export_dashboard.php" class="btn btn-export" title="Download XLSX semua filter">📥 Export XLSX</a>
+      <a href="export_katalog.php" target="_blank" class="btn btn-export" title="Katalog jurnal siap cetak / PDF" style="background:#f97316;color:#fff;border-color:#ea580c">📖 Export Katalog</a>
+    <?php endif; ?>
     <a href="jurnal_form.php" class="btn btn-primary">+ Tambah Jurnal</a>
   </div>
 </div>

@@ -6,6 +6,7 @@
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_admin();
+require_full_admin();
 require_once __DIR__ . '/../includes/lib_xlsx.php';
 require_once __DIR__ . '/../includes/stat_analytics.php';
 

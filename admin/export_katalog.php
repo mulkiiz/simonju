@@ -6,6 +6,7 @@
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_admin();
+require_full_admin();
 
 $rows = fetch_all("
   SELECT j.*,
