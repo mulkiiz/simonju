@@ -6,6 +6,10 @@
  */
 require_once __DIR__ . '/_konf.php';
 
+// Gerbang anti-bot: wajib verifikasi email @unsoed.ac.id via OTP dulu
+konf_require_verified();
+$verified_email = konf_verified_email();
+
 $data = [
     'nama_jurnal'=>'', 'url_jurnal'=>'', 'unit_kerja'=>'', 'volume_per_tahun'=>'',
     'apc'=>'', 'p_issn'=>'', 'e_issn'=>'', 'akreditasi'=>'', 'is_scopus'=>0,
@@ -86,6 +90,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Prefill email editor dgn email terverifikasi (sekali, saat GET)
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $data['editor_email'] === '') {
+    $data['editor_email'] = (string) $verified_email;
+}
+
 konf_header('Tambah Jurnal Baru');
 
 if ($success):
@@ -107,10 +116,13 @@ else:
 ?>
   <div class="konf-card">
     <h2 style="margin-top:0;font-size:1.1rem;color:#1c3a6e">Tambah Jurnal Baru</h2>
-    <p style="color:#5a6675;font-size:.88rem;margin-bottom:0">
+    <p style="color:#5a6675;font-size:.88rem;margin-bottom:8px">
       Gunakan formulir ini hanya jika jurnal Anda <strong>belum terdaftar</strong>
       pada daftar jurnal. Pengajuan akan ditinjau admin sebelum ditambahkan.
       Tanda <span class="req">*</span> wajib diisi.
+    </p>
+    <p style="margin:0;font-size:.82rem;color:#1c7a47;background:#d8f3e3;border:1px solid #b6e4c9;border-radius:8px;padding:7px 11px;display:inline-block">
+      &#10003; Terverifikasi sebagai <strong><?= h((string)$verified_email) ?></strong>
     </p>
   </div>
 

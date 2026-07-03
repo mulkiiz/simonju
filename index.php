@@ -313,6 +313,9 @@ footer a{color:#fff}
           <b>SIMONJU</b>
         </div>
         <p>Sistem Monitoring Jurnal — dikelola Pusat Pengelolaan Jurnal (PPJ), Lembaga Penelitian dan Pengabdian kepada Masyarakat (LPPM), Universitas Jenderal Soedirman.</p>
+        <p style="margin-top:16px">
+          <a href="konfirmasi/verifikasi.php" style="display:inline-block;background:var(--gold);color:#111;font-weight:700;padding:9px 18px;border-radius:999px">📝 Konfirmasi Jurnal Baru</a>
+        </p>
       </div>
       <div>
         <h4>Sekretariat PPJ</h4>
@@ -341,7 +344,7 @@ footer a{color:#fff}
     <div class="modal-head">
       <img src="assets/logo_unsoed.png" alt="Unsoed">
       <h3>SIMONJU</h3>
-      <p>Masuk ke dashboard</p>
+      <p>Sistem Monitoring Jurnal Unsoed</p>
     </div>
     <?php if ($error): ?>
       <div class="alert <?= ($msg==='logout'?'alert-info':'alert-error') ?>"><?= h($error) ?></div>
@@ -350,7 +353,7 @@ footer a{color:#fff}
       <?= csrf_field() ?>
       <div class="field">
         <label>Username</label>
-        <input type="text" name="username" required <?= $open_login ? 'autofocus' : '' ?> placeholder="Username admin atau slug jurnal">
+        <input type="text" name="username" required <?= $open_login ? 'autofocus' : '' ?> placeholder="username">
       </div>
       <div class="field">
         <label>Password</label>

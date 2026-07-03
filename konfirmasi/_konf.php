@@ -62,6 +62,104 @@ function konf_rate_hit() {
     exec_q("INSERT INTO konfirmasi_ratelimit (ip) VALUES (?)", 's', [konf_client_ip()]);
 }
 
+// =========================================================
+// Verifikasi email @unsoed.ac.id via OTP (anti-bot form publik).
+// Alur: minta email unsoed -> kirim kode 6 digit -> verifikasi ->
+// sesi 'terverifikasi' 30 menit -> baru boleh isi jurnal_baru.php.
+// =========================================================
+define('KONF_OTP_TTL',      600);   // OTP berlaku 10 menit
+define('KONF_OTP_MAXTRY',   5);     // maks salah tebak sebelum kode hangus
+define('KONF_OTP_COOLDOWN', 60);    // jeda antar kirim (detik)
+define('KONF_VERIFIED_TTL', 1800);  // sesi terverifikasi 30 menit
+
+/** True jika email valid & domain unsoed.ac.id (termasuk subdomain). */
+function konf_is_unsoed_email($email) {
+    $email = trim(strtolower((string)$email));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return false;
+    $host = substr(strrchr($email, '@'), 1);
+    return (bool) preg_match('/(^|\.)unsoed\.ac\.id$/', $host);
+}
+
+/** Body email OTP (HTML). */
+function konf_otp_email_body($code) {
+    $c = htmlspecialchars((string)$code, ENT_QUOTES, 'UTF-8');
+    return '<!doctype html><html><body style="margin:0;padding:24px;background:#f1f5f9;font-family:Segoe UI,Arial,sans-serif;color:#1e293b">'
+      . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">'
+      . '<table role="presentation" width="480" style="max-width:480px;width:100%;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)">'
+      . '<tr><td style="background:linear-gradient(135deg,#0c1e4a,#1e3a8a);padding:24px;text-align:center">'
+      . '<div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:1px">SIMONJU</div>'
+      . '<div style="color:#bfdbfe;font-size:12px">Pusat Pengelolaan Jurnal &middot; LPPM Unsoed</div></td></tr>'
+      . '<tr><td style="padding:26px 28px">'
+      . '<p style="margin:0 0 12px">Kode verifikasi untuk mengajukan jurnal baru di SIMONJU:</p>'
+      . '<div style="text-align:center;margin:18px 0">'
+      . '<span style="display:inline-block;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 28px;font-size:32px;font-weight:800;letter-spacing:8px;color:#0c1e4a">' . $c . '</span></div>'
+      . '<p style="margin:0 0 6px;color:#64748b;font-size:13px">Kode berlaku 10 menit. Jangan bagikan ke siapa pun.</p>'
+      . '<p style="margin:0;color:#94a3b8;font-size:12px">Abaikan email ini bila Anda tidak meminta kode.</p>'
+      . '</td></tr></table></td></tr></table></body></html>';
+}
+
+/** Buat & kirim OTP ke email unsoed. Return [bool ok, string pesan]. */
+function konf_otp_send($email) {
+    $email = trim(strtolower((string)$email));
+    if (!konf_is_unsoed_email($email)) {
+        return [false, 'Masukkan email resmi @unsoed.ac.id yang aktif.'];
+    }
+    $prev = $_SESSION['konf_otp'] ?? null;
+    if ($prev && ($prev['sent_at'] ?? 0) + KONF_OTP_COOLDOWN > time()) {
+        $sisa = ($prev['sent_at'] + KONF_OTP_COOLDOWN) - time();
+        return [false, "Tunggu {$sisa} detik sebelum meminta kode lagi."];
+    }
+    if (!konf_rate_ok()) {
+        return [false, 'Terlalu banyak permintaan dari jaringan Anda. Coba lagi dalam 1 jam.'];
+    }
+    $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    $_SESSION['konf_otp'] = [
+        'email'   => $email,
+        'hash'    => password_hash($code, PASSWORD_DEFAULT),
+        'exp'     => time() + KONF_OTP_TTL,
+        'tries'   => 0,
+        'sent_at' => time(),
+    ];
+    require_once __DIR__ . '/../includes/mailer.php';
+    [$ok, $msg] = send_smtp_mail($email, 'Pengelola Jurnal', 'Kode Verifikasi SIMONJU', konf_otp_email_body($code), true);
+    konf_rate_hit();
+    if (!$ok) return [false, 'Gagal mengirim email kode. ' . $msg];
+    return [true, 'Kode verifikasi dikirim ke ' . $email . '. Cek inbox atau folder spam.'];
+}
+
+/** Verifikasi kode OTP. Return [bool ok, string pesan]. */
+function konf_otp_verify($code) {
+    $code = trim((string) $code);
+    $otp  = $_SESSION['konf_otp'] ?? null;
+    if (!$otp) return [false, 'Sesi kode berakhir. Silakan minta kode baru.'];
+    if (time() > ($otp['exp'] ?? 0)) { unset($_SESSION['konf_otp']); return [false, 'Kode kedaluwarsa. Minta kode baru.']; }
+    if (($otp['tries'] ?? 0) >= KONF_OTP_MAXTRY) { unset($_SESSION['konf_otp']); return [false, 'Terlalu banyak percobaan. Minta kode baru.']; }
+    $_SESSION['konf_otp']['tries']++;
+    if (!preg_match('/^[0-9]{6}$/', $code) || !password_verify($code, $otp['hash'])) {
+        $sisa = KONF_OTP_MAXTRY - $_SESSION['konf_otp']['tries'];
+        return [false, 'Kode salah.' . ($sisa > 0 ? " Sisa percobaan: {$sisa}." : ' Minta kode baru.')];
+    }
+    unset($_SESSION['konf_otp']);
+    session_regenerate_id(true);
+    $_SESSION['konf_verified'] = ['email' => $otp['email'], 'until' => time() + KONF_VERIFIED_TTL];
+    return [true, 'Verifikasi berhasil.'];
+}
+
+/** Email terverifikasi yang masih berlaku, atau null. */
+function konf_verified_email() {
+    $v = $_SESSION['konf_verified'] ?? null;
+    if ($v && ($v['until'] ?? 0) > time()) return $v['email'];
+    return null;
+}
+
+/** Redirect ke halaman verifikasi bila belum terverifikasi. */
+function konf_require_verified() {
+    if (konf_verified_email() === null) {
+        header('Location: verifikasi.php');
+        exit;
+    }
+}
+
 /** Ambil jurnal berdasarkan token akses. NULL jika token salah. */
 function konf_get_jurnal_by_token($token) {
     $token = trim((string)$token);

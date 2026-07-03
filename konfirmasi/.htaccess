@@ -1,9 +1,9 @@
 # PPJ Unsoed - .htaccess folder /konfirmasi (halaman publik)
 
-# Force HTTPS
+# Force HTTPS (pakai REQUEST_URI agar path penuh tetap utuh di subdir/localhost)
 RewriteEngine On
 RewriteCond %{HTTPS} !=on
-RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
 # Blokir akses langsung ke helper (_konf.php) - hanya boleh di-include
 <FilesMatch "^_konf\.php$">
