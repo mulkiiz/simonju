@@ -91,6 +91,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Email editor tidak valid.';
     }
 
+    // --- Cek duplikat url_archive (kolom UNIQUE) ---
+    // Tanpa cek ini, INSERT bentrok UNIQUE gagal diam-diam -> insert_id 0 ->
+    // redirect ke id=0 -> pesan menyesatkan "Jurnal tidak ditemukan".
+    if ($data['url_archive'] !== '') {
+        $dup = fetch_one(
+            "SELECT id, nama_jurnal FROM jurnals WHERE url_archive=? AND id<>? LIMIT 1",
+            'si', [$data['url_archive'], $id]
+        );
+        if ($dup) {
+            $errors[] = 'URL Archive sudah dipakai jurnal "' . $dup['nama_jurnal']
+                      . '". Gunakan URL yang unik.';
+        }
+    }
+
     // --- Akreditasi: dua dimensi INDEPENDEN (Sinta & Scopus) ---
     $sinta_on    = !empty($_POST['sinta_on']);
     $sinta_level = trim($_POST['sinta_level'] ?? '');
@@ -185,12 +199,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  $data['link_gscholar'], $data['link_garuda'], $data['link_editor'], $data['link_sinta'],
                  $konf_token]
             );
-            $jid = (int)$r['insert_id'];
+            $jid = is_array($r) ? (int)$r['insert_id'] : 0;
             // Buat akun login dengan password awal = token.
-            if (function_exists('ensure_jurnal_account')) {
+            if ($jid > 0 && function_exists('ensure_jurnal_account')) {
                 ensure_jurnal_account($jid, $data['link_editor'] ?: null, $konf_token);
             }
+            if ($jid <= 0) {
+                $errors[] = 'Gagal menyimpan jurnal (kemungkinan URL Archive sudah terdaftar).';
+            }
         }
+
+        // Lanjut simpan editor & redirect hanya bila jurnal tersimpan.
+        if ($jid > 0):
 
         // --- Upsert editor (tabel terpisah) ---
         $punya_editor_data = ($data['editor_nama'] !== '' || $data['editor_email'] !== ''
@@ -219,6 +239,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         header("Location: jurnal_view.php?id={$jid}&saved=1");
         exit;
+
+        endif; // $jid > 0
     }
 }
 ?>
