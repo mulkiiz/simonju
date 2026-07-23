@@ -15,6 +15,9 @@ if (mb_strlen($pr) > 20) $pr = mb_substr($pr, 0, 20);
 $q = trim($_GET['q'] ?? '');
 if (mb_strlen($q) > 100) $q = mb_substr($q, 0, 100);
 
+$unit = trim($_GET['unit'] ?? '');
+if (mb_strlen($unit) > 200) $unit = mb_substr($unit, 0, 200);
+
 $per_page_opts = [10, 25, 50, 100];
 $per_page = (int)($_GET['pp'] ?? 25);
 if (!in_array($per_page, $per_page_opts, true)) $per_page = 25;
@@ -97,6 +100,12 @@ if ($pr !== '') {
     $params[] = $pr;
 }
 
+if ($unit !== '') {
+    $where_parts[] = "j.unit_kerja = ?";
+    $types .= 's';
+    $params[] = $unit;
+}
+
 if ($q !== '') {
     $where_parts[] = "(j.nama_jurnal LIKE ? OR j.p_issn LIKE ? OR j.e_issn LIKE ?
                        OR EXISTS(SELECT 1 FROM editor e WHERE e.jurnal_id=j.id AND e.nama LIKE ?)
@@ -147,6 +156,13 @@ if ($types !== '') {
 // Statistik pill counters
 // =========================================================
 $base_where = "j.konfirmasi_status = 'terkonfirmasi'";
+$st_types = '';
+$st_params = [];
+if ($unit !== '') {
+    $base_where .= " AND j.unit_kerja = ?";
+    $st_types .= 's';
+    $st_params[] = $unit;
+}
 if ($q !== '') {
     $search_cond = "(j.nama_jurnal LIKE ? OR j.p_issn LIKE ? OR j.e_issn LIKE ?
                      OR EXISTS(SELECT 1 FROM editor e WHERE e.jurnal_id=j.id AND e.nama LIKE ?)
@@ -154,11 +170,8 @@ if ($q !== '') {
                      OR j.akreditasi_peringkat LIKE ?
                      OR j.unit_kerja LIKE ?)";
     $base_where .= " AND $search_cond";
-    $st_types = 'sssssss';
-    $st_params = array_fill(0, 7, $like);
-} else {
-    $st_types = '';
-    $st_params = [];
+    $st_types .= 'sssssss';
+    $st_params = array_merge($st_params, array_fill(0, 7, $like));
 }
 
 $stats = fetch_all("
@@ -195,34 +208,31 @@ $r_belum_akr = fetch_one("
 ", $st_types, $st_params);
 $stat_belum_akr = (int)($r_belum_akr['n'] ?? 0);
 
-$r_apc = fetch_one("
-  SELECT COUNT(*) AS n FROM jurnals j
-  WHERE $base_where AND $BER_APC_SQL
-", $st_types, $st_params);
-$stat_apc = (int)($r_apc['n'] ?? 0);
-
-// Helper: format APC untuk display
-function fmt_apc($val) {
-    // Tanpa konsep "Gratis": hanya angka positif yang ditampilkan Rp,
-    // selain itu (0/kosong/'-'/teks) -> '-' (tidak ada APC).
-    $val = trim((string)$val);
-    if (!preg_match('/^[1-9][0-9]*$/', $val)) return '-';
-    return 'Rp ' . number_format((int)$val, 0, ',', '.');
-}
+// Daftar unit kerja untuk dropdown filter
+$unit_rows = fetch_all("
+  SELECT j.unit_kerja, COUNT(*) AS n
+  FROM jurnals j
+  WHERE j.konfirmasi_status = 'terkonfirmasi'
+    AND j.unit_kerja IS NOT NULL AND j.unit_kerja <> ''
+  GROUP BY j.unit_kerja
+  ORDER BY j.unit_kerja ASC
+");
 
 // Helper buat URL
 function build_qs($override = []) {
     $base = [
-        'akr' => $_GET['akr'] ?? 'all',
-        'pr'  => $_GET['pr'] ?? '',
-        'q'   => $_GET['q'] ?? '',
-        'pp'  => $_GET['pp'] ?? 25,
-        'p'   => $_GET['p'] ?? 1,
+        'akr'  => $_GET['akr'] ?? 'all',
+        'pr'   => $_GET['pr'] ?? '',
+        'q'    => $_GET['q'] ?? '',
+        'unit' => $_GET['unit'] ?? '',
+        'pp'   => $_GET['pp'] ?? 25,
+        'p'    => $_GET['p'] ?? 1,
     ];
     $merged = array_merge($base, $override);
     if ($merged['akr'] === 'all') unset($merged['akr']);
     if ($merged['pr'] === '')     unset($merged['pr']);
     if ($merged['q'] === '')      unset($merged['q']);
+    if ($merged['unit'] === '')   unset($merged['unit']);
     if ((int)$merged['pp'] === 25)unset($merged['pp']);
     if ((int)$merged['p'] === 1)  unset($merged['p']);
     return $merged ? ('?' . http_build_query($merged)) : '?';
@@ -261,9 +271,6 @@ function build_qs($override = []) {
   <a href="<?= h(build_qs(['akr'=>'belum_issn','pr'=>'','p'=>1])) ?>" class="pill <?= $filter==='belum_issn' ? 'active' : '' ?>">
     <span class="ico">📄</span> Belum ISSN <span class="pill-count"><?= $stat_belum_issn ?></span>
   </a>
-  <a href="<?= h(build_qs(['akr'=>'apc','pr'=>'','p'=>1])) ?>" class="pill <?= $filter==='apc' ? 'active' : '' ?>">
-    <span class="ico">💰</span> Ber-APC <span class="pill-count"><?= $stat_apc ?></span>
-  </a>
 </div>
 
 <?php if ($pr !== ''): ?>
@@ -281,6 +288,17 @@ function build_qs($override = []) {
   <?php if ($pr !== ''): ?>
     <input type="hidden" name="pr" value="<?= h($pr) ?>">
   <?php endif; ?>
+  <label class="per-page">
+    Unit Kerja
+    <select name="unit" onchange="this.form.submit()">
+      <option value="">Semua unit</option>
+      <?php foreach ($unit_rows as $u): ?>
+        <option value="<?= h($u['unit_kerja']) ?>" <?= $unit === $u['unit_kerja'] ? 'selected' : '' ?>>
+          <?= h($u['unit_kerja']) ?> (<?= (int)$u['n'] ?>)
+        </option>
+      <?php endforeach; ?>
+    </select>
+  </label>
   <div class="search-box">
     <span class="search-ico">🔍</span>
     <input type="text" name="q" value="<?= h($q) ?>" placeholder="Cari nama jurnal, ISSN, editor, unit kerja, peringkat…" autocomplete="off">
@@ -299,6 +317,13 @@ function build_qs($override = []) {
     per halaman
   </label>
 </form>
+
+<?php if ($unit !== ''): ?>
+  <div class="search-info">
+    Filter unit kerja: <strong><?= h($unit) ?></strong> &mdash; <?= $total_rows ?> jurnal
+    <a href="<?= h(build_qs(['unit'=>'','p'=>1])) ?>" class="muted small">(hapus filter)</a>
+  </div>
+<?php endif; ?>
 
 <?php if ($q !== ''): ?>
   <div class="search-info">
@@ -330,7 +355,6 @@ function build_qs($override = []) {
         <th>p-ISSN</th>
         <th>e-ISSN</th>
         <th>Ketua Editor</th>
-        <th>APC</th>
         <th class="num">Terbitan</th>
         <th class="num">Artikel</th>
         <th>Crawl Terakhir</th>
@@ -343,8 +367,6 @@ function build_qs($override = []) {
       $ap  = $j['akreditasi_peringkat'] ?? '';
       $is_scopus = (int)($j['is_scopus'] ?? 0);
       $sq  = $j['scopus_q'] ?? '';
-      $apc_raw = trim($j['apc'] ?? '');
-      $apc_display = fmt_apc($apc_raw);
       $pissn = trim($j['p_issn'] ?? '');
       $eissn = trim($j['e_issn'] ?? '');
       $pissn_valid = ($pissn !== '');
@@ -354,6 +376,9 @@ function build_qs($override = []) {
         <td>
           <strong><a href="jurnal_view.php?id=<?= (int)$j['id'] ?>"><?= h($j['nama_jurnal']) ?></a></strong>
           <div class="muted small"><?= h($j['url_archive']) ?></div>
+          <?php if (trim($j['unit_kerja'] ?? '') !== ''): ?>
+            <div class="muted small">🏛️ <?= h($j['unit_kerja']) ?></div>
+          <?php endif; ?>
         </td>
         <td>
           <?php
@@ -376,13 +401,6 @@ function build_qs($override = []) {
         <td><?php if ($pissn_valid): ?><span><?= h($pissn) ?></span><?php else: ?><span class="muted">—</span><?php endif; ?></td>
         <td><?php if ($eissn_valid): ?><span><?= h($eissn) ?></span><?php else: ?><span class="muted">—</span><?php endif; ?></td>
         <td><?= h($j['editor_nama'] ?: '—') ?></td>
-        <td>
-          <?php if ($apc_display !== '-'): ?>
-            <span class="badge badge-partial"><?= h($apc_display) ?></span>
-          <?php else: ?>
-            <span class="muted">—</span>
-          <?php endif; ?>
-        </td>
         <td class="num"><?= (int)$j['total_terbitan'] ?></td>
         <td class="num"><?= (int)($j['total_artikel'] ?? 0) ?></td>
         <td>
