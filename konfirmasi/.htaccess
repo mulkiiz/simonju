@@ -1,8 +1,11 @@
 # PPJ Unsoed - .htaccess folder /konfirmasi (halaman publik)
 
 # Force HTTPS (pakai REQUEST_URI agar path penuh tetap utuh di subdir/localhost)
+# Kecuali di localhost/127.0.0.1 (XAMPP dev biasanya tanpa SSL -> redirect malah mati)
 RewriteEngine On
 RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP_HOST} !=localhost
+RewriteCond %{HTTP_HOST} !^127\.0\.0\.1 [NC]
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
 # Blokir akses langsung ke helper (_konf.php) - hanya boleh di-include
