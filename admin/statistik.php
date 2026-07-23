@@ -311,7 +311,7 @@ $cg_str = $cg ? implode(',', $cg) : '#eef1f5 0% 100%';
 // =========================================================
 require_once __DIR__ . '/../includes/stat_analytics.php';
 [$cy, $cy1, $cy2] = stat_years();
-$top       = stat_top_artikel(20);
+$top       = stat_top_artikel(0); // 0 = semua jurnal terkonfirmasi
 $belum_cy  = stat_belum_cy_terakhir_cy1(); // belum 2026, terakhir 2025
 $belum_2th = stat_belum_2th();             // belum 2025 & 2026 (<=2024)
 
@@ -345,10 +345,10 @@ function stat_links_html($r) {
 <div class="section-card">
   <div class="prof-head">
     <span style="font-size:1.15rem">🏆</span>
-    <h3>Jurnal Paling Produktif (<?= $cy2 ?>–<?= $cy ?>)</h3>
+    <h3>Produktivitas Jurnal (<?= $cy2 ?>–<?= $cy ?>) <span class="muted" style="font-weight:400">(<?= count($top) ?>)</span></h3>
   </div>
-  <p class="prof-sub">Total artikel & terbitan dalam 3 tahun terakhir. Klik ikon: 📄 detail · 🌐 portal jurnal · 🏅 Sinta.</p>
-  <div class="table-wrap">
+  <p class="prof-sub">Semua jurnal terkonfirmasi, urut artikel terbanyak dalam 3 tahun terakhir. Klik ikon: 📄 detail · 🌐 portal jurnal · 🏅 Sinta.</p>
+  <div class="table-wrap" style="max-height:520px;overflow-y:auto">
   <table class="table">
     <thead><tr><th>#</th><th>Jurnal</th><th>Akreditasi</th><th>Vol. Terkini</th><th class="num">Terbitan</th><th class="num">Artikel</th><th>Tautan</th></tr></thead>
     <tbody>

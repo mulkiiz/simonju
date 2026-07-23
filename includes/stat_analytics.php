@@ -40,24 +40,26 @@ function stat_cur_vol_text($r) {
 /**
  * Jurnal dengan artikel terbanyak dalam 3 tahun terakhir.
  * issues = jumlah terbitan, artikel = total artikel (cy-2..cy).
+ * $limit = 0 -> SEMUA jurnal terkonfirmasi (termasuk tanpa terbitan, LEFT JOIN).
  */
 function stat_top_artikel($limit = 20) {
     [$cy, , $from] = [stat_years()[0], null, stat_years()[2]];
     $cols = stat_jurnal_cols();
-    return fetch_all(
+    $sql =
         "SELECT {$cols},
                 COUNT(t.id) AS issues,
                 COALESCE(SUM(t.jumlah_artikel),0) AS artikel
            FROM jurnals j
-           JOIN terbitan t
+           LEFT JOIN terbitan t
              ON t.jurnal_id = j.id
             AND CAST(t.tahun AS UNSIGNED) BETWEEN ? AND ?
           WHERE j.konfirmasi_status='terkonfirmasi'
           GROUP BY j.id
-          ORDER BY artikel DESC, issues DESC, j.nama_jurnal ASC
-          LIMIT ?",
-        'iii', [$from, $cy, (int)$limit]
-    );
+          ORDER BY artikel DESC, issues DESC, j.nama_jurnal ASC";
+    if ((int)$limit > 0) {
+        return fetch_all($sql . " LIMIT ?", 'iii', [$from, $cy, (int)$limit]);
+    }
+    return fetch_all($sql, 'ii', [$from, $cy]);
 }
 
 /** Jurnal terkonfirmasi yang TIDAK punya terbitan pada $year. */
