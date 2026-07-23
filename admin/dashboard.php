@@ -208,6 +208,18 @@ $r_belum_akr = fetch_one("
 ", $st_types, $st_params);
 $stat_belum_akr = (int)($r_belum_akr['n'] ?? 0);
 
+// Kolom APC hanya tampil saat filter ?akr=apc aktif (tanpa tombol/pill)
+$show_apc = ($filter === 'apc');
+
+// Helper: format APC untuk display
+function fmt_apc($val) {
+    // Tanpa konsep "Gratis": hanya angka positif yang ditampilkan Rp,
+    // selain itu (0/kosong/'-'/teks) -> '-' (tidak ada APC).
+    $val = trim((string)$val);
+    if (!preg_match('/^[1-9][0-9]*$/', $val)) return '-';
+    return 'Rp ' . number_format((int)$val, 0, ',', '.');
+}
+
 // Daftar unit kerja untuk dropdown filter
 $unit_rows = fetch_all("
   SELECT j.unit_kerja, COUNT(*) AS n
@@ -355,6 +367,7 @@ function build_qs($override = []) {
         <th>p-ISSN</th>
         <th>e-ISSN</th>
         <th>Ketua Editor</th>
+        <?php if ($show_apc): ?><th>APC</th><?php endif; ?>
         <th class="num">Terbitan</th>
         <th class="num">Artikel</th>
         <th>Crawl Terakhir</th>
@@ -401,6 +414,15 @@ function build_qs($override = []) {
         <td><?php if ($pissn_valid): ?><span><?= h($pissn) ?></span><?php else: ?><span class="muted">—</span><?php endif; ?></td>
         <td><?php if ($eissn_valid): ?><span><?= h($eissn) ?></span><?php else: ?><span class="muted">—</span><?php endif; ?></td>
         <td><?= h($j['editor_nama'] ?: '—') ?></td>
+        <?php if ($show_apc): $apc_display = fmt_apc($j['apc'] ?? ''); ?>
+        <td>
+          <?php if ($apc_display !== '-'): ?>
+            <span class="badge badge-partial"><?= h($apc_display) ?></span>
+          <?php else: ?>
+            <span class="muted">—</span>
+          <?php endif; ?>
+        </td>
+        <?php endif; ?>
         <td class="num"><?= (int)$j['total_terbitan'] ?></td>
         <td class="num"><?= (int)($j['total_artikel'] ?? 0) ?></td>
         <td>
