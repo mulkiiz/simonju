@@ -84,6 +84,23 @@ $scopus_rows = fetch_all(
 $scopus_map = [];
 foreach ($scopus_rows as $r) $scopus_map[trim($r['p'])] = (int)$r['n'];
 
+// Ringkas quartil scopus utk sub-label (mis. "Q3: 1, Q4: 1")
+$scopus_detail = [];
+foreach (['Q1','Q2','Q3','Q4'] as $qx) {
+    if (!empty($scopus_map[$qx])) $scopus_detail[] = $qx . ': ' . $scopus_map[$qx];
+}
+$scopus_detail_str = implode(', ', $scopus_detail);
+
+// Jumlah jurnal terkonfirmasi per unit kerja (unit terisi saja)
+$unit_rows = fetch_all(
+    "SELECT unit_kerja AS unit, COUNT(*) AS n
+       FROM jurnals
+      WHERE konfirmasi_status='terkonfirmasi'
+        AND unit_kerja IS NOT NULL AND unit_kerja<>''
+      GROUP BY unit_kerja
+      ORDER BY n DESC, unit_kerja ASC"
+) ?: [];
+
 // Pie chart data
 $pie = [
     ['label'=>'Scopus', 'n'=>$s_scopus, 'color'=>'#1c4f9c'],
@@ -153,7 +170,18 @@ $cg_str = $cg ? implode(',', $cg) : '#eef1f5 0% 100%';
   .rincian-row .section-card{margin-bottom:0}
   .mini-grid-3{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-  @media(max-width:768px){.stat-cards{grid-template-columns:repeat(2,1fr)}.prof-grid{grid-template-columns:1fr}.mini-grid,.mini-grid-3{grid-template-columns:1fr 1fr}.rincian-row{grid-template-columns:1fr}}
+  .stat-2col{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;margin-bottom:20px}
+  .stat-2col .col-left{display:flex;flex-direction:column;gap:20px}
+  .stat-2col .section-card{margin-bottom:0}
+
+  .unit-list{list-style:none;margin:0;padding:0}
+  .unit-list li{margin:0 0 6px}
+  .unit-list a{display:flex;align-items:center;gap:10px;background:#f7f9fc;border:1px solid #e7ebf2;border-radius:9px;padding:9px 12px;text-decoration:none;color:#33415c;font-size:.84rem;transition:background .15s,border-color .15s}
+  .unit-list a:hover{background:#eef2f9;border-color:#b8c4d6;text-decoration:none}
+  .unit-list .ul-name{flex:1;line-height:1.3}
+  .unit-list .ul-n{flex-shrink:0;min-width:30px;text-align:center;font-weight:800;color:#1c3a6e;background:#e6effb;border-radius:6px;padding:2px 8px}
+
+  @media(max-width:768px){.stat-cards{grid-template-columns:repeat(2,1fr)}.prof-grid{grid-template-columns:1fr}.mini-grid,.mini-grid-3{grid-template-columns:1fr 1fr}.rincian-row{grid-template-columns:1fr}.stat-2col{grid-template-columns:1fr}}
   @media(max-width:480px){.stat-cards{grid-template-columns:1fr 1fr}.mini-grid,.mini-grid-3{grid-template-columns:1fr}}
 </style>
 
@@ -191,45 +219,22 @@ $cg_str = $cg ? implode(',', $cg) : '#eef1f5 0% 100%';
   </a>
 </div>
 
-<!-- ====================== PROFIL AKREDITASI & ISSN (terkonfirmasi saja) ====================== -->
-<div class="section-card">
-  <div class="prof-head">
-    <span style="font-size:1.15rem">📊</span>
-    <h3>Profil Akreditasi &amp; ISSN</h3>
-  </div>
-  <p class="prof-sub">
-    Data jurnal yang sudah <strong>terkonfirmasi</strong>. Klik kartu untuk melihat daftarnya di dashboard.
-  </p>
+<!-- ====================== PROFIL (terkonfirmasi) — 2 kolom ====================== -->
+<p class="prof-sub" style="margin:0 0 14px">
+  Data jurnal yang sudah <strong>terkonfirmasi</strong>. Klik kartu untuk melihat daftarnya di dashboard.
+</p>
 
-  <div class="prof-grid">
-    <div>
-      <h4 style="margin:0 0 12px;font-size:.85rem;color:#33415c;letter-spacing:.3px;text-transform:uppercase">Rincian Data Jurnal</h4>
-      <div class="mini-grid">
-        <a href="dashboard.php?akr=scopus" class="mini-item mi-scopus">
-          <div class="mi-ic">🌐</div>
-          <div><div class="mi-num"><?= $s_scopus ?></div><div class="mi-lbl">Terindeks Scopus</div></div>
-        </a>
-        <a href="dashboard.php?akr=sinta" class="mini-item mi-sinta">
-          <div class="mi-ic">🏅</div>
-          <div><div class="mi-num"><?= $s_sinta ?></div><div class="mi-lbl">Terakreditasi SINTA</div></div>
-        </a>
-        <a href="dashboard.php?akr=belum" class="mini-item mi-belum">
-          <div class="mi-ic">🔖</div>
-          <div><div class="mi-num"><?= $s_belum_akr ?></div><div class="mi-lbl">Belum Akreditasi</div></div>
-        </a>
-        <a href="dashboard.php?akr=belum_issn" class="mini-item mi-noissn">
-          <div class="mi-ic">📄</div>
-          <div><div class="mi-num"><?= $s_belum_issn ?></div><div class="mi-lbl">Belum Memiliki ISSN</div></div>
-        </a>
-        <a href="dashboard.php?akr=apc" class="mini-item mi-apc">
-          <div class="mi-ic">💰</div>
-          <div><div class="mi-num"><?= $s_ber_apc ?></div><div class="mi-lbl">Ber-APC</div></div>
-        </a>
+<div class="stat-2col">
+
+  <!-- KOLOM 1: Rasio + Rincian + SINTA -->
+  <div class="col-left">
+
+    <!-- Rasio Peringkat Akreditasi -->
+    <div class="section-card">
+      <div class="prof-head">
+        <span style="font-size:1.15rem">📊</span>
+        <h3>Rasio Peringkat Akreditasi</h3>
       </div>
-    </div>
-
-    <div>
-      <h4 style="margin:0 0 12px;font-size:.85rem;color:#33415c;letter-spacing:.3px;text-transform:uppercase">Rasio Peringkat Akreditasi</h4>
       <div class="pie-wrap">
         <div class="pie" style="background:conic-gradient(<?= h($cg_str) ?>)">
           <div class="pie-center">
@@ -251,55 +256,76 @@ $cg_str = $cg ? implode(',', $cg) : '#eef1f5 0% 100%';
         </ul>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- ====================== RINCIAN SINTA & SCOPUS (1 baris) ====================== -->
-<div class="rincian-row">
-
-  <!-- SINTA -->
-  <div class="section-card">
-    <div class="prof-head">
-      <span style="font-size:1.15rem">🏅</span>
-      <h3>Peringkat SINTA</h3>
-    </div>
-    <div class="mini-grid-3">
-      <?php for ($i = 1; $i <= 6; $i++):
-        $key = "Sinta $i";
-        $n = (int)($sinta_map[$key] ?? 0);
-        $colors = [1=>'#1c7a47',2=>'#2bb56b',3=>'#5cc98c',4=>'#e0a91d',5=>'#e8852b',6=>'#d9603a'];
-      ?>
-        <a href="dashboard.php?akr=sinta&pr=<?= urlencode($key) ?>" class="mini-item">
-          <div class="mi-ic" style="background:<?= $colors[$i] ?>20;color:<?= $colors[$i] ?>">S<?= $i ?></div>
-          <div>
-            <div class="mi-num"><?= $n ?></div>
-            <div class="mi-lbl">Sinta <?= $i ?><?= $i === 1 ? ' (Scopus)' : '' ?></div>
-          </div>
+    <!-- Rincian Data Jurnal -->
+    <div class="section-card">
+      <div class="prof-head">
+        <span style="font-size:1.15rem">🗂️</span>
+        <h3>Rincian Data Jurnal</h3>
+      </div>
+      <div class="mini-grid">
+        <a href="dashboard.php?akr=scopus" class="mini-item mi-scopus">
+          <div class="mi-ic">🌐</div>
+          <div><div class="mi-num"><?= $s_scopus ?></div><div class="mi-lbl">Terindeks Scopus<?php if ($scopus_detail_str !== ''): ?><br><span class="muted" style="font-weight:500"><?= h($scopus_detail_str) ?></span><?php endif; ?></div></div>
         </a>
-      <?php endfor; ?>
+        <a href="dashboard.php?akr=sinta" class="mini-item mi-sinta">
+          <div class="mi-ic">🏅</div>
+          <div><div class="mi-num"><?= $s_sinta ?></div><div class="mi-lbl">Terakreditasi SINTA</div></div>
+        </a>
+        <a href="dashboard.php?akr=belum" class="mini-item mi-belum">
+          <div class="mi-ic">🔖</div>
+          <div><div class="mi-num"><?= $s_belum_akr ?></div><div class="mi-lbl">Belum Akreditasi</div></div>
+        </a>
+        <a href="dashboard.php?akr=belum_issn" class="mini-item mi-noissn">
+          <div class="mi-ic">📄</div>
+          <div><div class="mi-num"><?= $s_belum_issn ?></div><div class="mi-lbl">Belum Memiliki ISSN</div></div>
+        </a>
+      </div>
     </div>
+
+    <!-- Peringkat SINTA -->
+    <div class="section-card">
+      <div class="prof-head">
+        <span style="font-size:1.15rem">🏅</span>
+        <h3>Peringkat SINTA</h3>
+      </div>
+      <div class="mini-grid-3">
+        <?php for ($i = 1; $i <= 6; $i++):
+          $key = "Sinta $i";
+          $n = (int)($sinta_map[$key] ?? 0);
+          $colors = [1=>'#1c7a47',2=>'#2bb56b',3=>'#5cc98c',4=>'#e0a91d',5=>'#e8852b',6=>'#d9603a'];
+        ?>
+          <a href="dashboard.php?akr=sinta&pr=<?= urlencode($key) ?>" class="mini-item">
+            <div class="mi-ic" style="background:<?= $colors[$i] ?>20;color:<?= $colors[$i] ?>">S<?= $i ?></div>
+            <div>
+              <div class="mi-num"><?= $n ?></div>
+              <div class="mi-lbl">Sinta <?= $i ?><?= $i === 1 ? ' (Scopus)' : '' ?></div>
+            </div>
+          </a>
+        <?php endfor; ?>
+      </div>
+    </div>
+
   </div>
 
-  <!-- SCOPUS -->
-  <div class="section-card">
-    <div class="prof-head">
-      <span style="font-size:1.15rem">🌐</span>
-      <h3>Peringkat Scopus</h3>
-    </div>
-    <div class="mini-grid-3">
-      <?php foreach (['Q1','Q2','Q3','Q4'] as $qx):
-        $n = (int)($scopus_map[$qx] ?? 0);
-        $colors = ['Q1'=>'#14532d','Q2'=>'#064e3b','Q3'=>'#713f12','Q4'=>'#7c2d12'];
-        $bgs    = ['Q1'=>'#dcfce7','Q2'=>'#a7f3d0','Q3'=>'#fef9c3','Q4'=>'#fed7aa'];
-      ?>
-        <a href="dashboard.php?akr=scopus&pr=<?= urlencode($qx) ?>" class="mini-item">
-          <div class="mi-ic" style="background:<?= $bgs[$qx] ?>;color:<?= $colors[$qx] ?>"><?= $qx ?></div>
-          <div>
-            <div class="mi-num"><?= $n ?></div>
-            <div class="mi-lbl">Scopus <?= $qx ?></div>
-          </div>
-        </a>
-      <?php endforeach; ?>
+  <!-- KOLOM 2: Jumlah Jurnal per Unit Kerja -->
+  <div class="col-right">
+    <div class="section-card">
+      <div class="prof-head">
+        <span style="font-size:1.15rem">🏛️</span>
+        <h3>Jumlah Jurnal per Unit Kerja <span class="muted" style="font-weight:400">(<?= count($unit_rows) ?>)</span></h3>
+      </div>
+      <ul class="unit-list">
+        <?php foreach ($unit_rows as $u): ?>
+          <li>
+            <a href="dashboard.php?unit=<?= urlencode($u['unit']) ?>" title="Lihat daftar jurnal">
+              <span class="ul-name"><?= h($u['unit']) ?></span>
+              <span class="ul-n"><?= (int)$u['n'] ?></span>
+            </a>
+          </li>
+        <?php endforeach; ?>
+        <?php if (empty($unit_rows)): ?><li class="muted" style="padding:8px 4px">Belum ada data unit kerja.</li><?php endif; ?>
+      </ul>
     </div>
   </div>
 
