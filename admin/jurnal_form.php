@@ -274,7 +274,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'Fakultas Kedokteran (FK)', 'Fakultas Teknik (FT)',
             'Fakultas Ilmu-Ilmu Kesehatan (FIKES)', 'Fakultas Ilmu Budaya (FIB)',
             'Fakultas Matematika dan Ilmu Pengetahuan Alam (FMIPA)',
-            'Fakultas Perikanan dan Ilmu Kelautan (FPIK)', 'LPPM', 'Unit kerja lainnya',
+            'Fakultas Perikanan dan Ilmu Kelautan (FPIK)', 'Pascasarjana', 'LPPM', 'Unit kerja lainnya',
           ];
           $cur_uk = $data['unit_kerja'];
           if ($cur_uk !== '' && !in_array($cur_uk, $uk_list, true)) array_unshift($uk_list, $cur_uk);

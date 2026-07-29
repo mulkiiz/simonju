@@ -185,6 +185,7 @@ function konf_unit_kerja_list() {
         'Fakultas Ilmu Budaya (FIB)',
         'Fakultas Matematika dan Ilmu Pengetahuan Alam (FMIPA)',
         'Fakultas Perikanan dan Ilmu Kelautan (FPIK)',
+        'Pascasarjana',
         'LPPM',
         'Unit kerja lainnya',
     ];
