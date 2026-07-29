@@ -90,11 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Prefill email editor dgn email terverifikasi (sekali, saat GET)
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $data['editor_email'] === '') {
-    $data['editor_email'] = (string) $verified_email;
-}
-
 konf_header('Tambah Jurnal Baru');
 
 if ($success):
@@ -205,14 +200,8 @@ else:
         <input type="url" name="link_arsip" value="<?= h($data['link_arsip']) ?>"
                placeholder="https://.../issue/archive">
       </label>
-      <label>Link Google Scholar
-        <input type="url" name="link_gscholar" value="<?= h($data['link_gscholar']) ?>"
-               placeholder="https://scholar.google.com/citations?user=...">
-      </label>
-      <label>Link Garuda
-        <input type="url" name="link_garuda" value="<?= h($data['link_garuda']) ?>"
-               placeholder="https://garuda.kemdiktisaintek.go.id/journal/view/...">
-      </label>
+      <input type="hidden" name="link_gscholar" value="<?= h($data['link_gscholar']) ?>">
+      <input type="hidden" name="link_garuda" value="<?= h($data['link_garuda']) ?>">
       <label>Link Editorial Team
         <input type="url" name="link_editor" value="<?= h($data['link_editor']) ?>"
                placeholder="https://.../about/editorialTeam">
@@ -236,8 +225,7 @@ else:
     </fieldset>
 
     <fieldset>
-      <legend>Catatan (Opsional)</legend>
-      <label>Catatan untuk Admin
+      <label>Catatan untuk Pusat Jurnal Universitas
         <textarea name="catatan_editor" rows="3"
                   placeholder="Informasi tambahan jika ada…"><?= h($data['catatan_editor']) ?></textarea>
       </label>
