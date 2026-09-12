@@ -370,7 +370,7 @@ function ev_render_rubrik($cat, $grp) {
     <h2>Standar Penilaian &amp; Skor</h2>
     <p class="lead">Skor tiap standar menghasilkan prediksi peringkat akreditasi.</p>
 
-    <div class="note">ℹ️ Bobot butir dari master rubrik ARJUNA (dikelola admin). Pilih tingkat skor tiap unsur; subtotal terhitung otomatis. Arahkan kursor ke opsi untuk teks lengkap kriteria.</div>
+    <div class="note">📜 Rubrik penilaian telah disesuaikan dengan Kepdirjen 374/2026. Nilai minimal 60 untuk mendapatkan akreditasi minimal yaitu SINTA-4. <span class="muted small" style="display:block;margin-top:4px;color:#92400e">Pilih tingkat skor tiap unsur; subtotal terhitung otomatis — arahkan kursor ke opsi untuk teks lengkap kriteria.</span></div>
 
     <input type="hidden" id="s3a" value="0">
     <input type="hidden" id="s3b" value="0">
