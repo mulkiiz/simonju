@@ -36,8 +36,8 @@ $body_class = $body_class ?? '';
         <a href="dashboard.php">📋 Dashboard</a>
         <a href="statistik.php">📊 Statistik</a>
         <a href="cron_health.php">🩺 Health</a>
-        <a href="doi_requests.php">🔗 DOI</a>
         <a href="konfirmasi_admin.php">✅ Konfirmasi</a>
+        <a href="rubrik.php">📐 Rubrik</a>
         <a href="account.php">⚙️ Akun</a>
       <?php endif; ?>
       <a href="../logout.php" class="logout">🚪 Log out</a>
