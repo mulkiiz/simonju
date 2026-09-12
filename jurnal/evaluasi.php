@@ -67,7 +67,10 @@ function ev_render_rubrik($cat, $grp) {
     foreach ($cat['unsur'] as $u) {
         $name = 'r_unsur_' . (int)$u['id'];
         echo '<tr><td><span class="ucode">' . h($u['kode']) . '</span></td>';
-        echo '<td><strong>' . h($u['nama']) . '</strong></td><td>';
+        $note = trim((string)($u['catatan'] ?? ''));
+        echo '<td><strong>' . h($u['nama']) . '</strong>'
+           . ($note !== '' ? ' <span class="uinfo" title="' . h($note) . '">&#9432;</span>' : '')
+           . '</td><td>';
         echo '<select name="' . $name . '" class="rubrik-sel" data-grp="' . $grp . '" onchange="evSumRubric(\'' . $grp . '\')">';
         echo '<option value="0">— pilih —</option>';
         foreach ($u['kriteria'] as $k) {
@@ -139,6 +142,7 @@ function ev_render_rubrik($cat, $grp) {
 .evwiz .rtab td.num{text-align:center;color:#94a3b8;font-weight:600}
 .evwiz .rtab tr:last-child td{border-bottom:none}
 .evwiz .rtab .ucode{display:inline-block;background:#eef2f7;color:#1e3a8a;font-weight:700;font-size:12px;padding:2px 7px;border-radius:5px}
+.evwiz .rtab .uinfo{color:#2563eb;cursor:help;font-size:14px}
 .evwiz .rubrik-sel{width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;background:#fff}
 .evwiz .rubrik-sel:focus{outline:none;border-color:#1d4ed8}
 .evwiz .result{text-align:center;padding:10px 0}

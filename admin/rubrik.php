@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'unsur_add') {
         $kat = in_array($_POST['kategori'] ?? '', $valid_kat, true) ? $_POST['kategori'] : $rt;
         $kode = $cut($_POST['kode'] ?? '', 10);
-        $nama = $cut($_POST['nama'] ?? '', 150);
+        $nama = $cut($_POST['nama'] ?? '', 200);
         if ($kode !== '' && $nama !== '') {
             $ord = (int)(fetch_one("SELECT COALESCE(MAX(urutan),0)+1 AS n FROM rubrik_unsur WHERE kategori=?", 's', [$kat])['n'] ?? 1);
             exec_q("INSERT INTO rubrik_unsur (kategori,kode,nama,urutan) VALUES (?,?,?,?)", 'sssi', [$kat, $kode, $nama, $ord]);
@@ -33,9 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($act === 'unsur_edit') {
         $id = (int)($_POST['id'] ?? 0);
         $kode = $cut($_POST['kode'] ?? '', 10);
-        $nama = $cut($_POST['nama'] ?? '', 150);
+        $nama = $cut($_POST['nama'] ?? '', 200);
+        $catatan = $cut($_POST['catatan'] ?? '', 2000);
         if ($id && $kode !== '' && $nama !== '') {
-            exec_q("UPDATE rubrik_unsur SET kode=?, nama=? WHERE id=?", 'ssi', [$kode, $nama, $id]);
+            exec_q("UPDATE rubrik_unsur SET kode=?, nama=?, catatan=? WHERE id=?", 'sssi', [$kode, $nama, ($catatan === '' ? null : $catatan), $id]);
             $msg = 'Unsur diperbarui.';
         }
     } elseif ($act === 'unsur_del') {
@@ -84,6 +85,8 @@ $flash = $_GET['msg'] ?? '';
 .rb-uhead .nm{font-weight:700;font-size:14px;color:#111827}
 .rb-uhead .mx{margin-left:auto;font-size:12px;color:#64748b}
 .rb-uhead form{display:inline-flex;gap:6px;align-items:center}
+.rb-uhead form.uedit{flex-wrap:wrap;flex:1;min-width:280px}
+.rb-uhead .unote{flex-basis:100%;width:100%;font-size:12px;resize:vertical;font-family:inherit}
 .rb-inp{padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:13px;font-family:inherit}
 .rb-krit{width:100%;border-collapse:collapse;font-size:13px}
 .rb-krit td{padding:7px 10px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
@@ -130,14 +133,15 @@ $ok = abs($max - $target) < 0.001;
 <div class="rb-unsur">
   <div class="rb-uhead">
     <span class="rb-code"><?= h($u['kode']) ?></span>
-    <form method="post">
+    <form method="post" class="uedit">
       <?= csrf_field() ?>
       <input type="hidden" name="action" value="unsur_edit">
       <input type="hidden" name="tab" value="<?= $tab ?>">
       <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
       <input class="rb-inp" type="text" name="kode" value="<?= h($u['kode']) ?>" style="width:60px" maxlength="10" title="Kode">
-      <input class="rb-inp" type="text" name="nama" value="<?= h($u['nama']) ?>" style="width:220px" maxlength="150" title="Nama unsur">
-      <button class="rb-mini" title="Simpan nama/kode">💾</button>
+      <input class="rb-inp" type="text" name="nama" value="<?= h($u['nama']) ?>" style="width:260px" maxlength="200" title="Nama unsur">
+      <button class="rb-mini" title="Simpan kode/nama/catatan">💾</button>
+      <textarea class="rb-inp unote" name="catatan" rows="2" maxlength="2000" placeholder="Catatan/panduan penilaian (opsional) — tampil sebagai info di form jurnal"><?= h($u['catatan'] ?? '') ?></textarea>
     </form>
     <span class="mx">maks <strong><?= rubrik_num($u['max']) ?></strong></span>
     <form method="post" onsubmit="return confirm('Hapus unsur <?= h(addslashes($u['kode'])) ?> beserta semua kriterianya?')">

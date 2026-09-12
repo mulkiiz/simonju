@@ -31,7 +31,7 @@ function rubrik_load() {
         ];
     }
 
-    $unsur = fetch_all("SELECT id, kategori, kode, nama FROM rubrik_unsur ORDER BY kategori, urutan, id");
+    $unsur = fetch_all("SELECT id, kategori, kode, nama, catatan FROM rubrik_unsur ORDER BY kategori, urutan, id");
     if (!$unsur) return $out;
 
     $byId = [];
