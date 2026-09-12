@@ -177,6 +177,21 @@ function ev_render_rubrik($cat, $grp) {
 .evwiz .res-ident{text-align:center;border-bottom:1px solid #eef2f7;padding-bottom:14px;margin-bottom:8px}
 .evwiz .res-ident .res-jname{font-size:18px;font-weight:800;color:#0c1e4a;line-height:1.3}
 .evwiz .res-ident .res-jmeta{font-size:12.5px;color:#64748b;margin-top:3px}
+/* Rincian rubrik pada hasil/PDF */
+.evwiz .res-detail{margin-top:22px}
+.evwiz .rd-h{font-size:14px;color:#0c1e4a;margin:16px 0 6px;padding-bottom:4px;border-bottom:2px solid #e2e8f0}
+.evwiz .rd-tab{width:100%;border-collapse:collapse;font-size:12.5px}
+.evwiz .rd-tab td{padding:7px 8px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+.evwiz .rd-code{width:44px;font-weight:700;color:#1e3a8a}
+.evwiz .rd-nm{font-weight:600;color:#1f2937}
+.evwiz .rd-krit{font-weight:400;color:#64748b;font-size:11.5px;margin-top:2px;line-height:1.4}
+.evwiz .rd-val{width:66px;text-align:right;font-weight:800;color:#0c1e4a;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Tanda tangan */
+.evwiz .res-sign{display:flex;gap:24px;margin-top:28px;page-break-inside:avoid}
+.evwiz .sign-col{flex:1;text-align:center;font-size:13px}
+.evwiz .sign-role{font-weight:600;color:#1f2937;margin-bottom:2px}
+.evwiz .sign-space{height:70px}
+.evwiz .sign-name{border-top:1px dotted transparent;color:#111827;font-weight:600}
 .evwiz .rubrik-sel{width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;background:#fff}
 .evwiz .rubrik-sel:focus{outline:none;border-color:#1d4ed8}
 .evwiz .result{text-align:center;padding:10px 0}
@@ -494,6 +509,21 @@ function ev_render_rubrik($cat, $grp) {
       </div>
 
       <div class="warn-dis" id="disWarn" style="display:none"></div>
+
+      <div class="res-detail" id="resDetail"></div>
+
+      <div class="res-sign">
+        <div class="sign-col">
+          <div class="sign-role">Tim PPJ LPPM</div>
+          <div class="sign-space"></div>
+          <div class="sign-name">(…………………………………)</div>
+        </div>
+        <div class="sign-col">
+          <div class="sign-role">Reviewer Internal</div>
+          <div class="sign-space"></div>
+          <div class="sign-name">(…………………………………)</div>
+        </div>
+      </div>
     </div>
 
     <div class="actions">
@@ -682,6 +712,34 @@ window.__evStep  = <?= $dr ? (int)$dr['step'] : 0 ?>;
     });
   }
 
+  // ---- Rincian rubrik untuk hasil/PDF ----
+  function evEsc(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  function evBuildDetail(){
+    const wrap=document.getElementById('resDetail');
+    if(!wrap) return;
+    let html='';
+    [['3a','STEP 3A — Tata Kelola'],['3b','STEP 3B — Mutu Artikel']].forEach(([grp,title])=>{
+      html+='<h4 class="rd-h">'+title+'</h4><table class="rd-tab"><tbody>';
+      form.querySelectorAll('.acc[data-grp="'+grp+'"] .acc-item').forEach(item=>{
+        const code=item.querySelector('.ucode').textContent.trim();
+        const nm=item.querySelector('.acc-title').textContent.trim();
+        const ch=item.querySelector('input:checked');
+        const max=item.querySelector('input[data-max]')?.dataset.max||'';
+        const val=ch?ch.value:'–';
+        const txt=ch?ch.closest('.acc-opt').querySelector('.acc-txt').textContent.trim():'(belum dipilih)';
+        html+='<tr><td class="rd-code">'+evEsc(code)+'</td><td class="rd-nm">'+evEsc(nm)
+             +'<div class="rd-krit">'+evEsc(txt)+'</div></td><td class="rd-val">'+val+' / '+max+'</td></tr>';
+      });
+      html+='</tbody></table>';
+    });
+    const d1=form.querySelector('[name=d1]:checked')?.value, d2=form.querySelector('[name=d2]:checked')?.value;
+    html+='<h4 class="rd-h">STEP 3C — Disinsentif</h4><table class="rd-tab"><tbody>'
+        +'<tr><td class="rd-code">1</td><td class="rd-nm">Pelanggaran integritas akademik</td><td class="rd-val">'+(d1==='ya'?'Ya':'Tidak')+'</td></tr>'
+        +'<tr><td class="rd-code">2</td><td class="rd-nm">Ethical Clearance</td><td class="rd-val">'+(d2==='ya'?'Ada':'Tidak ada')+'</td></tr>'
+        +'</tbody></table>';
+    wrap.innerHTML=html;
+  }
+
   // ---- Hitung skor akhir + prediksi ----
   window.evCompute = function(){
     const a=parseFloat(document.getElementById('s3a').value)||0;
@@ -720,6 +778,8 @@ window.__evStep  = <?= $dr ? (int)$dr['step'] : 0 ?>;
 
     const dt=document.getElementById('resDate');
     if(dt) dt.textContent=new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+
+    evBuildDetail();
   };
 
   // ---- Download hasil sebagai PDF ----
@@ -728,13 +788,23 @@ window.__evStep  = <?= $dr ? (int)$dr['step'] : 0 ?>;
     const fname='Evaluasi_Diri_'+<?= json_encode(preg_replace('/[^A-Za-z0-9]+/', '_', $pf_nama ?: 'Jurnal')) ?>+'.pdf';
     if(!(window.jspdf && window.html2canvas)){ window.print(); return; }
     const btn=document.getElementById('btnPdf'); const old=btn.textContent; btn.disabled=true; btn.textContent='Menyiapkan…';
-    window.html2canvas(card,{scale:2,backgroundColor:'#ffffff'}).then(cv=>{
+    window.html2canvas(card,{scale:2,backgroundColor:'#ffffff',windowWidth:card.scrollWidth}).then(cv=>{
       const {jsPDF}=window.jspdf;
       const pdf=new jsPDF('p','mm','a4');
-      const m=12, pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
-      let iw=pw-m*2, ih=cv.height*iw/cv.width;
-      if(ih>ph-m*2){ ih=ph-m*2; iw=cv.width*ih/cv.height; }
-      pdf.addImage(cv.toDataURL('image/png'),'PNG',(pw-iw)/2,m,iw,ih);
+      const m=10, pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
+      const iw=pw-m*2;
+      const pxPerMm=cv.width/iw;             // canvas px per mm pada lebar target
+      const pageHpx=Math.floor((ph-m*2)*pxPerMm); // tinggi 1 halaman (px kanvas)
+      let y=0, page=0;
+      while(y<cv.height){
+        const sliceH=Math.min(pageHpx, cv.height-y);
+        const c=document.createElement('canvas'); c.width=cv.width; c.height=sliceH;
+        const ctx=c.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,c.width,sliceH);
+        ctx.drawImage(cv,0,y,cv.width,sliceH,0,0,cv.width,sliceH);
+        if(page>0) pdf.addPage();
+        pdf.addImage(c.toDataURL('image/png'),'PNG',m,m,iw,sliceH/pxPerMm);
+        y+=sliceH; page++;
+      }
       pdf.save(fname);
       btn.disabled=false; btn.textContent=old;
     }).catch(()=>{ btn.disabled=false; btn.textContent=old; window.print(); });
