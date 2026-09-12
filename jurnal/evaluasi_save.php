@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 csrf_check();
 
 $jid  = current_jurnal_id();
-$step = max(0, min(5, (int)($_POST['step'] ?? 0)));
+$step = max(0, min(7, (int)($_POST['step'] ?? 0)));
 $data = (string)($_POST['data'] ?? '');
 
 // Validasi: harus JSON valid & tak berlebihan.

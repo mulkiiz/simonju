@@ -55,31 +55,37 @@ $RB = rubrik_load();
 // Peta kategori -> grup UI (3a/3b) + skor maksimum aktual.
 $grp_map = ['tata_kelola' => '3a', 'mutu_artikel' => '3b'];
 
-/** Render satu standar sebagai tabel unsur + select kriteria bertingkat. */
+/** Render satu standar sebagai daftar accordion; tiap unsur berisi kriteria
+ *  bertingkat (radio) dengan teks penuh terbaca. */
 function ev_render_rubrik($cat, $grp) {
     if (empty($cat['unsur'])) {
         echo '<p class="muted small">Rubrik belum tersedia. Hubungi admin.</p>';
         return;
     }
-    echo '<div class="rubrik-table"><table class="rtab"><thead><tr>'
-       . '<th style="width:52px">Kode</th><th>Unsur / kriteria penilaian</th>'
-       . '<th style="width:150px">Pilihan skor</th><th style="width:60px" class="num">Maks</th></tr></thead><tbody>';
+    echo '<div class="acc" data-grp="' . $grp . '">';
     foreach ($cat['unsur'] as $u) {
-        $name = 'r_unsur_' . (int)$u['id'];
-        echo '<tr><td><span class="ucode">' . h($u['kode']) . '</span></td>';
+        $uid  = (int)$u['id'];
+        $name = 'r_unsur_' . $uid;
+        $max  = rubrik_num($u['max']);
         $note = trim((string)($u['catatan'] ?? ''));
-        echo '<td><strong>' . h($u['nama']) . '</strong>'
-           . ($note !== '' ? ' <span class="uinfo" title="' . h($note) . '">&#9432;</span>' : '')
-           . '</td><td>';
-        echo '<select name="' . $name . '" class="rubrik-sel" data-grp="' . $grp . '" onchange="evSumRubric(\'' . $grp . '\')">';
-        echo '<option value="0">— pilih —</option>';
+        echo '<div class="acc-item" data-uid="' . $uid . '">';
+        echo '<button type="button" class="acc-head" onclick="evAcc(this)">'
+           . '<span class="ucode">' . h($u['kode']) . '</span>'
+           . '<span class="acc-title">' . h($u['nama']) . '</span>'
+           . '<span class="acc-score" id="sc_' . $uid . '">–&nbsp;/&nbsp;' . $max . '</span>'
+           . '<span class="acc-caret">▾</span></button>';
+        echo '<div class="acc-body">';
+        if ($note !== '') echo '<div class="acc-note">&#9432; ' . h($note) . '</div>';
         foreach ($u['kriteria'] as $k) {
-            echo '<option value="' . rubrik_num($k['nilai']) . '" title="' . h($k['kriteria']) . '">'
-               . rubrik_num($k['nilai']) . ' — ' . h(mb_strimwidth($k['kriteria'], 0, 60, '…')) . '</option>';
+            $val = rubrik_num($k['nilai']);
+            echo '<label class="acc-opt">'
+               . '<input type="radio" name="' . $name . '" value="' . $val . '" data-grp="' . $grp . '" data-uid="' . $uid . '" data-max="' . $max . '" onchange="evPick(this)">'
+               . '<span class="acc-val">' . $val . '</span>'
+               . '<span class="acc-txt">' . h($k['kriteria']) . '</span></label>';
         }
-        echo '</select></td><td class="num">' . rubrik_num($u['max']) . '</td></tr>';
+        echo '</div></div>';
     }
-    echo '</tbody></table></div>';
+    echo '</div>';
 }
 ?>
 <style>
@@ -143,6 +149,34 @@ function ev_render_rubrik($cat, $grp) {
 .evwiz .rtab tr:last-child td{border-bottom:none}
 .evwiz .rtab .ucode{display:inline-block;background:#eef2f7;color:#1e3a8a;font-weight:700;font-size:12px;padding:2px 7px;border-radius:5px}
 .evwiz .rtab .uinfo{color:#2563eb;cursor:help;font-size:14px}
+/* Accordion rubrik */
+.evwiz .sticky-sum{position:sticky;top:0;z-index:5;background:#0c1e4a;color:#fff;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.evwiz .sticky-sum .sg-val{color:#fff}
+.evwiz .acc{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+.evwiz .acc-item{border:1px solid #e5e7eb;border-radius:9px;overflow:hidden;background:#fff}
+.evwiz .acc-item.picked{border-color:#93c5fd}
+.evwiz .acc-head{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#f8fafc;border:none;padding:11px 14px;cursor:pointer;font-family:inherit}
+.evwiz .acc-item.picked .acc-head{background:#eff6ff}
+.evwiz .acc-head:hover{background:#eef2f7}
+.evwiz .acc-head .acc-title{flex:1;min-width:0;font-size:13.5px;font-weight:600;color:#1f2937;line-height:1.35}
+.evwiz .acc-head .acc-score{flex:0 0 auto;font-size:12.5px;font-weight:800;color:#1e3a8a;font-variant-numeric:tabular-nums;background:#e0e7ff;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.evwiz .acc-item.picked .acc-score{background:#1e3a8a;color:#fff}
+.evwiz .acc-head .acc-caret{flex:0 0 auto;color:#94a3b8;transition:transform .2s}
+.evwiz .acc-item.open .acc-caret{transform:rotate(180deg)}
+.evwiz .acc-body{display:none;padding:8px 14px 12px;border-top:1px solid #eef2f7}
+.evwiz .acc-item.open .acc-body{display:block}
+.evwiz .acc-note{background:#eff6ff;border:1px solid #dbeafe;color:#1e40af;font-size:12.5px;padding:8px 10px;border-radius:7px;margin-bottom:8px;line-height:1.45}
+.evwiz .acc-opt{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:7px;cursor:pointer;font-size:13px;line-height:1.4}
+.evwiz .acc-opt:hover{background:#f8fafc}
+.evwiz .acc-opt input{margin-top:2px;flex:0 0 auto}
+.evwiz .acc-opt .acc-val{flex:0 0 auto;font-weight:800;color:#1e3a8a;min-width:28px}
+.evwiz .acc-opt .acc-txt{flex:1;color:#374151}
+.evwiz .acc-opt input:checked~.acc-txt{color:#0c1e4a;font-weight:600}
+/* Result card (untuk PDF) */
+.evwiz #resCard{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:22px}
+.evwiz .res-ident{text-align:center;border-bottom:1px solid #eef2f7;padding-bottom:14px;margin-bottom:8px}
+.evwiz .res-ident .res-jname{font-size:18px;font-weight:800;color:#0c1e4a;line-height:1.3}
+.evwiz .res-ident .res-jmeta{font-size:12.5px;color:#64748b;margin-top:3px}
 .evwiz .rubrik-sel{width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;background:#fff}
 .evwiz .rubrik-sel:focus{outline:none;border-color:#1d4ed8}
 .evwiz .result{text-align:center;padding:10px 0}
@@ -168,8 +202,10 @@ function ev_render_rubrik($cat, $grp) {
     <li data-s="1"><b>1</b>Pengajuan</li>
     <li data-s="2"><b>2A</b>Pemeriksaan Awal</li>
     <li data-s="3"><b>2B</b>Kelayakan</li>
-    <li data-s="4"><b>3</b>Standar &amp; Skor</li>
-    <li data-s="5"><b>✓</b>Hasil</li>
+    <li data-s="4"><b>3A</b>Tata Kelola</li>
+    <li data-s="5"><b>3B</b>Mutu Artikel</li>
+    <li data-s="6"><b>3C</b>Disinsentif</li>
+    <li data-s="7"><b>✓</b>Hasil</li>
   </ol>
   <div class="progress"><span id="evBar"></span></div>
 
@@ -369,52 +405,62 @@ function ev_render_rubrik($cat, $grp) {
     </div>
   </section>
 
-  <!-- ============ STEP 3: STANDAR & SKOR ============ -->
+  <!-- ============ STEP 3A: TATA KELOLA ============ -->
   <section class="panel" data-step="4">
-    <h2>Standar Penilaian &amp; Skor</h2>
-    <p class="lead">Skor tiap standar menghasilkan prediksi peringkat akreditasi.</p>
-
-    <div class="note">📜 Rubrik penilaian telah disesuaikan dengan Kepdirjen 374/2026. Nilai minimal 60 untuk mendapatkan akreditasi minimal yaitu SINTA-4. <span class="muted small" style="display:block;margin-top:4px;color:#92400e">Pilih tingkat skor tiap unsur; subtotal terhitung otomatis — arahkan kursor ke opsi untuk teks lengkap kriteria.</span></div>
+    <h2>STEP 3A — <?= h($RB['tata_kelola']['label']) ?></h2>
+    <p class="lead">Klik tiap unsur untuk membuka rubrik, lalu pilih tingkat skor yang sesuai.</p>
+    <div class="note">📜 Rubrik penilaian telah disesuaikan dengan Kepdirjen 374/2026. Nilai minimal 60 untuk mendapatkan akreditasi minimal yaitu SINTA-4.</div>
 
     <input type="hidden" id="s3a" value="0">
+    <div class="sg-head sticky-sum">
+      <strong>Subtotal Tata Kelola</strong>
+      <div class="sg-val"><span id="s3aOut">0</span> / <?= rubrik_num($RB['tata_kelola']['max']) ?></div>
+    </div>
+    <?php ev_render_rubrik($RB['tata_kelola'], '3a'); ?>
+
+    <div class="actions">
+      <button type="button" class="btn" data-prev>&larr; Kembali</button>
+      <button type="button" class="btn btn-primary" data-next>Lanjut ke 3B &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ============ STEP 3B: MUTU ARTIKEL ============ -->
+  <section class="panel" data-step="5">
+    <h2>STEP 3B — <?= h($RB['mutu_artikel']['label']) ?></h2>
+    <p class="lead">Klik tiap unsur untuk membuka rubrik, lalu pilih tingkat skor yang sesuai.</p>
+
     <input type="hidden" id="s3b" value="0">
+    <div class="sg-head sticky-sum">
+      <strong>Subtotal Mutu Artikel</strong>
+      <div class="sg-val"><span id="s3bOut">0</span> / <?= rubrik_num($RB['mutu_artikel']['max']) ?></div>
+    </div>
+    <?php ev_render_rubrik($RB['mutu_artikel'], '3b'); ?>
 
-    <!-- 3A -->
-    <div class="score-group">
-      <div class="sg-head">
-        <h3>STEP 3A — <?= h($RB['tata_kelola']['label']) ?></h3>
-        <div class="sg-val"><span id="s3aOut">0</span> / <?= rubrik_num($RB['tata_kelola']['max']) ?></div>
+    <div class="actions">
+      <button type="button" class="btn" data-prev>&larr; Kembali</button>
+      <button type="button" class="btn btn-primary" data-next>Lanjut ke 3C &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ============ STEP 3C: DISINSENTIF ============ -->
+  <section class="panel" data-step="6">
+    <h2>STEP 3C — Disinsentif</h2>
+    <p class="lead">Faktor yang dapat menggugurkan/menurunkan peringkat terlepas dari skor.</p>
+
+    <div class="ck-row" style="margin-bottom:10px"><div class="no">1</div><div class="body">
+      <div class="q">Pelanggaran integritas akademik</div>
+      <div class="yn neg">
+        <label><input type="radio" name="d1" value="ya"><span>Ya</span></label>
+        <label><input type="radio" name="d1" value="tidak" checked><span>Tidak</span></label>
       </div>
-      <?php ev_render_rubrik($RB['tata_kelola'], '3a'); ?>
-    </div>
-
-    <!-- 3B -->
-    <div class="score-group">
-      <div class="sg-head">
-        <h3>STEP 3B — <?= h($RB['mutu_artikel']['label']) ?></h3>
-        <div class="sg-val"><span id="s3bOut">0</span> / <?= rubrik_num($RB['mutu_artikel']['max']) ?></div>
+    </div></div>
+    <div class="ck-row" style="margin:0"><div class="no">2</div><div class="body">
+      <div class="q">Ethical Clearance</div>
+      <div class="yn">
+        <label><input type="radio" name="d2" value="ya" checked><span>Ada</span></label>
+        <label><input type="radio" name="d2" value="tidak"><span>Tidak ada</span></label>
       </div>
-      <?php ev_render_rubrik($RB['mutu_artikel'], '3b'); ?>
-    </div>
-
-    <!-- 3C -->
-    <div class="score-group">
-      <div class="sg-head"><h3>STEP 3C — Disinsentif</h3></div>
-      <div class="ck-row" style="margin-bottom:10px"><div class="no">1</div><div class="body">
-        <div class="q">Pelanggaran integritas akademik</div>
-        <div class="yn neg">
-          <label><input type="radio" name="d1" value="ya"><span>Ya</span></label>
-          <label><input type="radio" name="d1" value="tidak" checked><span>Tidak</span></label>
-        </div>
-      </div></div>
-      <div class="ck-row" style="margin:0"><div class="no">2</div><div class="body">
-        <div class="q">Ethical Clearance</div>
-        <div class="yn">
-          <label><input type="radio" name="d2" value="ya" checked><span>Ada</span></label>
-          <label><input type="radio" name="d2" value="tidak"><span>Tidak ada</span></label>
-        </div>
-      </div></div>
-    </div>
+    </div></div>
 
     <div class="actions">
       <button type="button" class="btn" data-prev>&larr; Kembali</button>
@@ -423,35 +469,44 @@ function ev_render_rubrik($cat, $grp) {
   </section>
 
   <!-- ============ RESULT ============ -->
-  <section class="panel" data-step="5">
+  <section class="panel" data-step="7">
     <h2>Prediksi Peringkat Akreditasi</h2>
     <p class="lead">Berdasarkan total skor STEP 3 (Tata Kelola + Mutu Artikel).</p>
 
-    <div class="result">
-      <div class="big" id="resScore" style="color:#1e3a8a">0</div>
-      <div class="muted small">Skor Akhir (maks 100)</div>
-      <br>
-      <span class="band" id="resBand" style="background:#6b7280">—</span>
-      <div class="sub" id="resRange"></div>
-    </div>
+    <div id="resCard">
+      <div class="res-ident">
+        <div class="res-jname"><?= h($pf_nama ?: 'Jurnal') ?></div>
+        <div class="res-jmeta">Evaluasi Diri Akreditasi &middot; <span id="resDate"></span></div>
+      </div>
 
-    <div class="breakdown">
-      <div><span>STEP 3A — Tata Kelola</span><span><b id="bd3a">0</b> / <?= rubrik_num($RB['tata_kelola']['max']) ?></span></div>
-      <div><span>STEP 3B — Mutu Artikel</span><span><b id="bd3b">0</b> / <?= rubrik_num($RB['mutu_artikel']['max']) ?></span></div>
-      <div class="tot"><span>Total</span><span><b id="bdTot">0</b> / <?= rubrik_num($RB['tata_kelola']['max'] + $RB['mutu_artikel']['max']) ?></span></div>
-    </div>
+      <div class="result">
+        <div class="big" id="resScore" style="color:#1e3a8a">0</div>
+        <div class="muted small">Skor Akhir (maks 100)</div>
+        <br>
+        <span class="band" id="resBand" style="background:#6b7280">—</span>
+        <div class="sub" id="resRange"></div>
+      </div>
 
-    <div class="warn-dis" id="disWarn" style="display:none"></div>
+      <div class="breakdown">
+        <div><span>STEP 3A — Tata Kelola</span><span><b id="bd3a">0</b> / <?= rubrik_num($RB['tata_kelola']['max']) ?></span></div>
+        <div><span>STEP 3B — Mutu Artikel</span><span><b id="bd3b">0</b> / <?= rubrik_num($RB['mutu_artikel']['max']) ?></span></div>
+        <div class="tot"><span>Total</span><span><b id="bdTot">0</b> / <?= rubrik_num($RB['tata_kelola']['max'] + $RB['mutu_artikel']['max']) ?></span></div>
+      </div>
+
+      <div class="warn-dis" id="disWarn" style="display:none"></div>
+    </div>
 
     <div class="actions">
       <button type="button" class="btn" data-prev>&larr; Kembali</button>
-      <button type="button" class="btn btn-primary" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+      <button type="button" class="btn btn-primary" id="btnPdf" onclick="evDownloadPDF()">⬇️ Download PDF</button>
     </div>
   </section>
 </form>
 
 <div id="evSaved" style="position:fixed;right:16px;bottom:16px;background:#15803d;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.2);opacity:0;transform:translateY(8px);transition:.25s;pointer-events:none;z-index:50">💾 Tersimpan</div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script>
 window.__evDraft = <?= ($dr && $dr['data']) ? str_replace('</', '<\/', $dr['data']) : 'null' ?>;
 window.__evStep  = <?= $dr ? (int)$dr['step'] : 0 ?>;
@@ -542,7 +597,8 @@ window.__evStep  = <?= $dr ? (int)$dr['step'] : 0 ?>;
       const inputs=document.querySelectorAll('#issueLinks input');
       d['issue[]'].forEach((val,i)=>{ if(inputs[i]) inputs[i].value=val; });
     }
-    // 3) skor rubrik (select sudah terisi di langkah 1) -> jumlahkan ulang
+    // 3) skor rubrik (radio sudah terpilih di langkah 1) -> badge + jumlah
+    evRefreshBadges();
     evSumRubric('3a'); evSumRubric('3b');
     syncEcho();
   }
@@ -598,14 +654,33 @@ window.__evStep  = <?= $dr ? (int)$dr['step'] : 0 ?>;
       .catch(()=>{ res.className='issn-res bad'; res.textContent='Gagal menghubungi server.'; });
   };
 
-  // ---- STEP 3: jumlahkan skor rubrik per standar ----
+  // ---- STEP 3: accordion rubrik ----
+  window.evAcc = function(btn){ btn.parentElement.classList.toggle('open'); };
+
+  window.evPick = function(el){
+    const b=document.getElementById('sc_'+el.dataset.uid);
+    if(b) b.innerHTML=el.value+'&nbsp;/&nbsp;'+el.dataset.max;
+    const item=el.closest('.acc-item');
+    if(item){ item.classList.add('picked'); item.classList.remove('open'); }
+    evSumRubric(el.dataset.grp);
+  };
+
   window.evSumRubric = function(grp){
     let sum=0;
-    form.querySelectorAll('.rubrik-sel[data-grp="'+grp+'"]').forEach(s=>{ sum+=parseFloat(s.value)||0; });
+    form.querySelectorAll('input[type=radio][data-grp="'+grp+'"]:checked').forEach(s=>{ sum+=parseFloat(s.value)||0; });
     sum=Math.round(sum*100)/100;
     document.getElementById('s'+grp).value=sum;
     document.getElementById('s'+grp+'Out').textContent=sum;
   };
+
+  // Segarkan badge skor tiap unsur (dipakai setelah hydrate).
+  function evRefreshBadges(){
+    form.querySelectorAll('input[type=radio][data-uid]:checked').forEach(el=>{
+      const b=document.getElementById('sc_'+el.dataset.uid);
+      if(b) b.innerHTML=el.value+'&nbsp;/&nbsp;'+el.dataset.max;
+      const item=el.closest('.acc-item'); if(item) item.classList.add('picked');
+    });
+  }
 
   // ---- Hitung skor akhir + prediksi ----
   window.evCompute = function(){
@@ -642,12 +717,33 @@ window.__evStep  = <?= $dr ? (int)$dr['step'] : 0 ?>;
       w.innerHTML='⚠️ <strong>Disinsentif terdeteksi</strong> ('+reasons.join(' & ')+'). '+
         'Kondisi ini dapat menggugurkan atau menurunkan peringkat terlepas dari skor. Perbaiki sebelum mengajukan.';
     } else { w.style.display='none'; }
+
+    const dt=document.getElementById('resDate');
+    if(dt) dt.textContent=new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+  };
+
+  // ---- Download hasil sebagai PDF ----
+  window.evDownloadPDF = function(){
+    const card=document.getElementById('resCard');
+    const fname='Evaluasi_Diri_'+<?= json_encode(preg_replace('/[^A-Za-z0-9]+/', '_', $pf_nama ?: 'Jurnal')) ?>+'.pdf';
+    if(!(window.jspdf && window.html2canvas)){ window.print(); return; }
+    const btn=document.getElementById('btnPdf'); const old=btn.textContent; btn.disabled=true; btn.textContent='Menyiapkan…';
+    window.html2canvas(card,{scale:2,backgroundColor:'#ffffff'}).then(cv=>{
+      const {jsPDF}=window.jspdf;
+      const pdf=new jsPDF('p','mm','a4');
+      const m=12, pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
+      let iw=pw-m*2, ih=cv.height*iw/cv.width;
+      if(ih>ph-m*2){ ih=ph-m*2; iw=cv.width*ih/cv.height; }
+      pdf.addImage(cv.toDataURL('image/png'),'PNG',(pw-iw)/2,m,iw,ih);
+      pdf.save(fname);
+      btn.disabled=false; btn.textContent=old;
+    }).catch(()=>{ btn.disabled=false; btn.textContent=old; window.print(); });
   };
 
   // ---- Init: resume draft bila ada ----
   if (window.__evDraft){ hydrate(window.__evDraft); } else { evRenderIssues(); }
   const startStep = (typeof window.__evStep==='number') ? window.__evStep : 0;
-  if (startStep===5) evCompute();
+  if (startStep===7) evCompute();
   show(startStep);
 })();
 </script>
