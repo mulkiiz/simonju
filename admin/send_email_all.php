@@ -171,6 +171,10 @@ $no_email = (int)(fetch_one("SELECT COUNT(*) c FROM jurnal_accounts")['c'] ?? 0)
   const $=id=>document.getElementById(id);
   const log=$('seLog');
   const spin=on=>$('seSpin').classList.toggle('on', on);
+  // Overlay modal ala fitur crawl (didefinisikan di footer.php).
+  function ov(on,sub){ if(typeof overlay==='undefined') return;
+    if(on){ overlay.show('Mengirim Email ke Editor', sub||'Memproses…', 'Jangan tutup tab. Pengiriman diberi jeda otomatis agar aman.'); }
+    else { overlay.hide(); } }
 
   function setStat(){ $('cSent').textContent=sent; $('cUnsent').textContent=Math.max(0,total-sent);
     $('seBar').style.width=(total?Math.round(sent/total*100):0)+'%'; }
@@ -188,8 +192,9 @@ $no_email = (int)(fetch_one("SELECT COUNT(*) c FROM jurnal_accounts")['c'] ?? 0)
   function loop(){
     if(!running) return;
     spin(true); $('seStatus').textContent='Mengirim…';
+    ov(true, 'Terkirim '+sent+' / '+total+' — mengirim editor berikutnya…');
     post({act:'send',limit:LIMIT}).then(d=>{
-      if(!d.ok){ spin(false); $('seStatus').textContent=d.msg||'Gagal.'; running=false; toggle(false); return; }
+      if(!d.ok){ spin(false); ov(false); $('seStatus').textContent=d.msg||'Gagal.'; running=false; toggle(false); return; }
       addLog(d.log||[]);
       sent += (d.log||[]).filter(x=>x.ok).length;
       setStat();
@@ -197,18 +202,19 @@ $no_email = (int)(fetch_one("SELECT COUNT(*) c FROM jurnal_accounts")['c'] ?? 0)
       const noProgress = (prevRem!==-1 && d.remaining>=prevRem);
       prevRem = d.remaining;
       if(d.processed>0 && d.remaining>0 && !noProgress){
+        ov(true, 'Terkirim '+sent+' / '+total+' — sisa '+d.remaining+', jeda sejenak…');
         $('seStatus').textContent='Sisa '+d.remaining+' — jeda…';
         setTimeout(loop, WAIT_MS);
       } else {
-        spin(false);
+        spin(false); ov(false);
         $('seStatus').textContent = d.remaining>0
           ? ('Berhenti: '+d.remaining+' gagal terkirim (cek email/SMTP).')
           : ('Selesai. '+sent+'/'+total+' terkirim.');
         running=false; toggle(false);
       }
-    }).catch(err=>{ spin(false); $('seStatus').textContent='Gagal: '+(err.message||'koneksi'); running=false; toggle(false); });
+    }).catch(err=>{ spin(false); ov(false); $('seStatus').textContent='Gagal: '+(err.message||'koneksi'); running=false; toggle(false); });
   }
-  function start(){ prevRem=-1; running=true; toggle(true); loop(); }
+  function start(){ prevRem=-1; running=true; toggle(true); ov(true,'Menyiapkan pengiriman…'); loop(); }
   function toggle(on){ $('btnStart').disabled=on; $('btnForce').disabled=on; $('btnReset').disabled=on; }
 
   function guard(){
