@@ -22,6 +22,13 @@ $has_col = !empty($col);
 
 /* ── Endpoint aksi (AJAX, POST + CSRF) ─────────────── */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Pastikan respons selalu JSON bersih (jangan biarkan warning/HTML bocor).
+    @ini_set('display_errors', '0');
+    error_reporting(0);
+    ignore_user_abort(true);
+    @set_time_limit(0);           // SMTP bisa lambat; jangan sampai fatal timeout
+    while (ob_get_level() > 0) { ob_end_clean(); }
+
     csrf_check();
     header('Content-Type: application/json; charset=utf-8');
     if (!$has_col) {
@@ -54,13 +61,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $log = [];
         foreach ($rows as $r) {
-            $subject = 'Info Login Simonju - ' . $r['nama_jurnal'];
-            $body    = build_jurnal_email($r['nama_jurnal'], $r['username'], $r['konfirmasi_token'] ?? '(lihat admin)');
-            [$ok, $m] = send_smtp_mail($r['email'], $r['nama_editor'] ?: $r['nama_jurnal'], $subject, $body, true);
+            try {
+                $subject = 'Info Login Simonju - ' . $r['nama_jurnal'];
+                $body    = build_jurnal_email($r['nama_jurnal'], $r['username'], $r['konfirmasi_token'] ?? '(lihat admin)');
+                [$ok, $m] = send_smtp_mail($r['email'], $r['nama_editor'] ?: $r['nama_jurnal'], $subject, $body, true);
+            } catch (\Throwable $e) {
+                $ok = false; $m = 'Exception: ' . $e->getMessage();
+            }
             if ($ok) {
                 exec_q("UPDATE jurnal_accounts SET email_login_sent_at=NOW() WHERE id=?", 'i', [(int)$r['id']]);
             }
-            $log[] = ['jurnal' => $r['nama_jurnal'], 'email' => $r['email'], 'ok' => $ok, 'msg' => $m];
+            $log[] = ['jurnal' => $r['nama_jurnal'], 'email' => $r['email'], 'ok' => (bool)$ok, 'msg' => $m];
         }
 
         // Sisa yang belum terkirim (format email wajar).
@@ -155,7 +166,7 @@ $no_email = (int)(fetch_one("SELECT COUNT(*) c FROM jurnal_accounts")['c'] ?? 0)
   const csrf = <?= json_encode(csrf_token()) ?>;
   const HAS_COL = <?= $has_col ? 'true' : 'false' ?>;
   const WAIT_MS = 1500;   // jeda antar-batch (throttle)
-  const LIMIT   = 3;      // email per batch
+  const LIMIT   = 1;      // 1 email per request -> tiap request pendek, aman timeout
   let total=<?= $total ?>, sent=<?= $sent ?>, running=false;
   const $=id=>document.getElementById(id);
   const log=$('seLog');
@@ -169,7 +180,9 @@ $no_email = (int)(fetch_one("SELECT COUNT(*) c FROM jurnal_accounts")['c'] ?? 0)
   function esc(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
   function post(body){ const b=new URLSearchParams(body); b.set('_csrf',csrf);
-    return fetch('send_email_all.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b}).then(r=>r.json()); }
+    return fetch('send_email_all.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b})
+      .then(async r=>{ const t=await r.text(); try{ return JSON.parse(t); }
+        catch(e){ throw new Error('HTTP '+r.status+' — '+(t.replace(/<[^>]+>/g,' ').trim().slice(0,140)||'respons kosong')); } }); }
 
   let prevRem=-1;
   function loop(){
@@ -193,7 +206,7 @@ $no_email = (int)(fetch_one("SELECT COUNT(*) c FROM jurnal_accounts")['c'] ?? 0)
           : ('Selesai. '+sent+'/'+total+' terkirim.');
         running=false; toggle(false);
       }
-    }).catch(()=>{ spin(false); $('seStatus').textContent='Error koneksi.'; running=false; toggle(false); });
+    }).catch(err=>{ spin(false); $('seStatus').textContent='Gagal: '+(err.message||'koneksi'); running=false; toggle(false); });
   }
   function start(){ prevRem=-1; running=true; toggle(true); loop(); }
   function toggle(on){ $('btnStart').disabled=on; $('btnForce').disabled=on; $('btnReset').disabled=on; }
@@ -207,10 +220,12 @@ $no_email = (int)(fetch_one("SELECT COUNT(*) c FROM jurnal_accounts")['c'] ?? 0)
   $('btnForce').onclick=()=>{ if(running)return; if(!HAS_COL){alert('Jalankan sql_email_login_sent.sql dulu.');return;}
     if(total===0){alert('Tidak ada editor dengan email valid.');return;}
     if(!confirm('KIRIM ULANG ke SEMUA editor (reset status lalu kirim semua)?'))return;
-    toggle(true); post({act:'reset'}).then(d=>{ if(!d.ok){alert(d.msg||'Gagal');toggle(false);return;} sent=0; setStat(); start(); }); };
+    toggle(true); post({act:'reset'}).then(d=>{ if(!d.ok){alert(d.msg||'Gagal');toggle(false);return;} sent=0; setStat(); start(); })
+      .catch(err=>{ alert('Gagal: '+(err.message||'koneksi')); toggle(false); }); };
   $('btnReset').onclick=()=>{ if(running)return; if(!HAS_COL){alert('Jalankan sql_email_login_sent.sql dulu.');return;}
     if(!confirm('Reset penanda "sudah terkirim" untuk semua akun?'))return;
-    toggle(true); post({act:'reset'}).then(d=>{ sent=0; setStat(); $('seStatus').textContent=d.msg||''; toggle(false); }); };
+    toggle(true); post({act:'reset'}).then(d=>{ sent=0; setStat(); $('seStatus').textContent=d.msg||''; toggle(false); })
+      .catch(err=>{ $('seStatus').textContent='Gagal: '+(err.message||'koneksi'); toggle(false); }); };
 })();
 </script>
 
