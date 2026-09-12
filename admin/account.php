@@ -13,9 +13,25 @@ if (!empty($_GET['reset_err'])) $err = h($_GET['reset_err']);
 if (!empty($_GET['email_ok']))  $msg = h($_GET['email_ok']);
 if (!empty($_GET['email_err'])) $err = h($_GET['email_err']);
 
-/* ── Ganti password admin ──────────────────────────── */
+/* ── Aksi POST ─────────────────────────────────────── */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
+    $action = $_POST['action'] ?? '';
+
+    // Hapus log login (semua / lebih lama dari 30 hari).
+    if ($action === 'clear_log' || $action === 'purge_log') {
+        if ($action === 'clear_log') {
+            exec_q("DELETE FROM login_log");
+            $done = 'Semua log login dihapus.';
+        } else {
+            exec_q("DELETE FROM login_log WHERE created_at < (NOW() - INTERVAL 30 DAY)");
+            $done = 'Log login lebih dari 30 hari dihapus.';
+        }
+        header('Location: account.php?tab=log&reset_ok=' . urlencode($done));
+        exit;
+    }
+
+    // Ganti password admin.
     $old = $_POST['old_pass'] ?? '';
     $new = $_POST['new_pass'] ?? '';
     $cnf = $_POST['confirm_pass'] ?? '';
@@ -239,6 +255,7 @@ if ($tab === 'log') {
       🧪 Test Email
     </button>
   </form>
+  <a href="send_email_all.php" class="btn btn-primary" title="Sebar akun login ke semua editor (batch, throttled)">✉️ Kirim ke Semua Editor</a>
 </div>
 
 <?php if ($search !== ''): ?>
@@ -372,12 +389,27 @@ if ($tab === 'log') {
 <p class="muted small">24 jam terakhir: <strong><?= (int)($lsum['total'] ?? 0) ?></strong> percobaan
   · ✅ <?= (int)($lsum['ok'] ?? 0) ?> sukses · ❌ <?= (int)($lsum['gagal'] ?? 0) ?> gagal.</p>
 
-<form method="get" action="account.php" style="margin-bottom:12px">
-  <input type="hidden" name="tab" value="log">
-  <input type="text" name="lq" value="<?= h($log_q) ?>" placeholder="cari username..." style="padding:6px 10px;border:1px solid #d1d5db;border-radius:5px">
-  <button type="submit" class="btn btn-sm">Cari</button>
-  <?php if ($log_q !== ''): ?><a href="?tab=log" class="btn btn-sm">Reset</a><?php endif; ?>
-</form>
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <form method="get" action="account.php" style="margin:0">
+    <input type="hidden" name="tab" value="log">
+    <input type="text" name="lq" value="<?= h($log_q) ?>" placeholder="cari username..." style="padding:6px 10px;border:1px solid #d1d5db;border-radius:5px">
+    <button type="submit" class="btn btn-sm">Cari</button>
+    <?php if ($log_q !== ''): ?><a href="?tab=log" class="btn btn-sm">Reset</a><?php endif; ?>
+  </form>
+  <span style="flex:1"></span>
+  <form method="post" action="account.php" style="margin:0"
+        onsubmit="return confirm('Hapus log login yang lebih dari 30 hari? Tindakan permanen.')">
+    <?= csrf_field() ?>
+    <input type="hidden" name="action" value="purge_log">
+    <button type="submit" class="btn btn-sm">🧹 Hapus &gt; 30 hari</button>
+  </form>
+  <form method="post" action="account.php" style="margin:0"
+        onsubmit="return confirm('HAPUS SEMUA log login secara permanen? Tidak bisa dibatalkan.')">
+    <?= csrf_field() ?>
+    <input type="hidden" name="action" value="clear_log">
+    <button type="submit" class="btn btn-sm btn-danger">🗑️ Hapus Semua</button>
+  </form>
+</div>
 
 <?php if (empty($login_logs)): ?>
   <p class="muted">Belum ada catatan login.</p>

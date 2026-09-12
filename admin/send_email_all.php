@@ -1,0 +1,185 @@
+<?php
+/**
+ * admin/send_email_all.php — Sebar akun login ke SEMUA email editor (batch).
+ *
+ * Kirim bertahap + jeda (throttle) via loop fetch di browser, supaya SMTP
+ * tidak memblokir karena burst. JALANKAN DARI SERVER PPJ (IP datacenter),
+ * bukan XAMPP lokal (IP rumah rawan diblokir provider).
+ *
+ * Resume: kolom jurnal_accounts.email_login_sent_at menandai yang sudah terkirim.
+ */
+$page_title = 'Sebar Akun Login';
+require_once __DIR__ . '/../includes/header_admin.php';
+require_once __DIR__ . '/../includes/mailer.php';
+require_admin();
+
+// Hanya jurnal dengan email editor format wajar yang dihitung/dikirim.
+const EMAIL_COND = "e.email LIKE '%@%.%'";
+
+/* ── Endpoint aksi (AJAX, POST + CSRF) ─────────────── */
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_check();
+    header('Content-Type: application/json; charset=utf-8');
+    $act = $_POST['act'] ?? '';
+
+    if ($act === 'reset') {
+        exec_q("UPDATE jurnal_accounts SET email_login_sent_at=NULL");
+        echo json_encode(['ok' => true, 'msg' => 'Status kirim direset.']);
+        exit;
+    }
+
+    if ($act === 'send') {
+        $limit = max(1, min(5, (int)($_POST['limit'] ?? 3)));
+
+        // Selalu ambil yang BELUM terkirim (email_login_sent_at NULL) supaya
+        // batch maju terus tanpa duplikasi. "Kirim ulang" = reset dulu.
+        $rows = fetch_all(
+            "SELECT ja.id, ja.username, j.nama_jurnal, j.konfirmasi_token,
+                    e.email, e.nama AS nama_editor
+             FROM jurnal_accounts ja
+             JOIN jurnals j ON j.id = ja.jurnal_id
+             LEFT JOIN editor e ON e.jurnal_id = ja.jurnal_id
+             WHERE " . EMAIL_COND . " AND ja.email_login_sent_at IS NULL
+             ORDER BY j.nama_jurnal
+             LIMIT {$limit}"
+        );
+
+        $log = [];
+        foreach ($rows as $r) {
+            $subject = 'Info Login Simonju - ' . $r['nama_jurnal'];
+            $body    = build_jurnal_email($r['nama_jurnal'], $r['username'], $r['konfirmasi_token'] ?? '(lihat admin)');
+            [$ok, $m] = send_smtp_mail($r['email'], $r['nama_editor'] ?: $r['nama_jurnal'], $subject, $body, true);
+            if ($ok) {
+                exec_q("UPDATE jurnal_accounts SET email_login_sent_at=NOW() WHERE id=?", 'i', [(int)$r['id']]);
+            }
+            $log[] = ['jurnal' => $r['nama_jurnal'], 'email' => $r['email'], 'ok' => $ok, 'msg' => $m];
+        }
+
+        // Sisa yang belum terkirim (format email wajar).
+        $rem = (int)(fetch_one(
+            "SELECT COUNT(*) c FROM jurnal_accounts ja
+             JOIN jurnals j ON j.id=ja.jurnal_id
+             LEFT JOIN editor e ON e.jurnal_id=ja.jurnal_id
+             WHERE " . EMAIL_COND . " AND ja.email_login_sent_at IS NULL"
+        )['c'] ?? 0);
+
+        echo json_encode(['ok' => true, 'processed' => count($rows), 'remaining' => $rem, 'log' => $log]);
+        exit;
+    }
+
+    echo json_encode(['ok' => false, 'msg' => 'Aksi tidak dikenal.']);
+    exit;
+}
+
+/* ── Statistik ─────────────────────────────────────── */
+$stat = fetch_one(
+    "SELECT
+        COUNT(*) AS total,
+        SUM(ja.email_login_sent_at IS NOT NULL) AS sent
+     FROM jurnal_accounts ja
+     JOIN jurnals j ON j.id=ja.jurnal_id
+     LEFT JOIN editor e ON e.jurnal_id=ja.jurnal_id
+     WHERE " . EMAIL_COND
+) ?: ['total' => 0, 'sent' => 0];
+$total   = (int)$stat['total'];
+$sent    = (int)$stat['sent'];
+$unsent  = $total - $sent;
+$no_email = (int)(fetch_one("SELECT COUNT(*) c FROM jurnal_accounts")['c'] ?? 0) - $total;
+?>
+<style>
+.se-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.se-card{border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#fff}
+.se-card .n{font-size:26px;font-weight:800;color:#1e3a8a;line-height:1}
+.se-card .l{font-size:12px;color:#64748b;margin-top:4px}
+.se-bar{height:10px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin:6px 0 18px}
+.se-bar span{display:block;height:100%;background:linear-gradient(90deg,#16a34a,#22c55e);width:0;transition:width .3s}
+.se-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.se-log{border:1px solid #e5e7eb;border-radius:8px;max-height:340px;overflow:auto;font-size:13px}
+.se-log div{padding:7px 12px;border-bottom:1px solid #f1f5f9;display:flex;gap:8px;align-items:baseline}
+.se-log div:last-child{border-bottom:none}
+.se-log .ok{color:#15803d}.se-log .bad{color:#b91c1c}
+.se-log .jn{font-weight:600;flex:1;min-width:0}
+.se-warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:13px;padding:10px 12px;border-radius:8px;margin-bottom:16px}
+</style>
+
+<div class="page-head">
+  <h1>✉️ Sebar Akun Login ke Editor</h1>
+  <div class="page-head-actions"><a href="account.php?tab=jurnal" class="btn">&larr; Kembali</a></div>
+</div>
+
+<div class="se-warn">
+  ⚠️ <strong>Jalankan halaman ini dari server ppj</strong> (ppj.jurnalsinta.id), bukan localhost/XAMPP —
+  blast dari IP rumah rawan diblokir provider email. Pengiriman diberi jeda otomatis (throttle) agar aman.
+</div>
+
+<div class="se-cards">
+  <div class="se-card"><div class="n" id="cTotal"><?= $total ?></div><div class="l">Editor ber-email valid</div></div>
+  <div class="se-card"><div class="n" id="cSent" style="color:#16a34a"><?= $sent ?></div><div class="l">Sudah terkirim</div></div>
+  <div class="se-card"><div class="n" id="cUnsent" style="color:#ea580c"><?= $unsent ?></div><div class="l">Belum terkirim</div></div>
+  <div class="se-card"><div class="n" style="color:#94a3b8"><?= $no_email ?></div><div class="l">Tanpa email valid</div></div>
+</div>
+<div class="se-bar"><span id="seBar" style="width:<?= $total? round($sent/$total*100):0 ?>%"></span></div>
+
+<div class="se-actions">
+  <button class="btn btn-primary" id="btnStart">▶️ Kirim yang belum terkirim</button>
+  <button class="btn" id="btnForce" title="Kirim ulang ke SEMUA editor, termasuk yang sudah">🔁 Kirim ulang semua</button>
+  <button class="btn btn-danger" id="btnReset" title="Reset penanda terkirim">♻️ Reset status</button>
+  <span id="seStatus" class="muted small" style="align-self:center"></span>
+</div>
+
+<div class="se-log" id="seLog"></div>
+
+<script>
+(function(){
+  const csrf = <?= json_encode(csrf_token()) ?>;
+  const WAIT_MS = 1500;   // jeda antar-batch (throttle)
+  const LIMIT   = 3;      // email per batch
+  let total=<?= $total ?>, sent=<?= $sent ?>, running=false;
+  const $=id=>document.getElementById(id);
+  const log=$('seLog');
+
+  function setStat(){ $('cSent').textContent=sent; $('cUnsent').textContent=Math.max(0,total-sent);
+    $('seBar').style.width=(total?Math.round(sent/total*100):0)+'%'; }
+  function addLog(items){ items.forEach(it=>{ const d=document.createElement('div');
+    d.innerHTML='<span class="jn">'+esc(it.jurnal)+'</span><span class="'+(it.ok?'ok':'bad')+'">'
+      +(it.ok?'✓ terkirim':'✗ '+esc(it.msg))+'</span>'; log.prepend(d); }); }
+  function esc(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+  function post(body){ const b=new URLSearchParams(body); b.set('_csrf',csrf);
+    return fetch('send_email_all.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b}).then(r=>r.json()); }
+
+  let prevRem=-1;
+  function loop(){
+    if(!running) return;
+    $('seStatus').textContent='Mengirim…';
+    post({act:'send',limit:LIMIT}).then(d=>{
+      if(!d.ok){ $('seStatus').textContent=d.msg||'Gagal.'; running=false; toggle(false); return; }
+      addLog(d.log||[]);
+      sent += (d.log||[]).filter(x=>x.ok).length;
+      setStat();
+      // Berhenti bila tak ada baris lagi, atau batch gagal total (sisa tak berkurang).
+      const noProgress = (prevRem!==-1 && d.remaining>=prevRem);
+      prevRem = d.remaining;
+      if(d.processed>0 && d.remaining>0 && !noProgress){
+        $('seStatus').textContent='Sisa '+d.remaining+' — jeda…';
+        setTimeout(loop, WAIT_MS);
+      } else {
+        $('seStatus').textContent = d.remaining>0
+          ? ('Berhenti: '+d.remaining+' gagal terkirim (cek email/SMTP).')
+          : ('Selesai. '+sent+'/'+total+' terkirim.');
+        running=false; toggle(false);
+      }
+    }).catch(()=>{ $('seStatus').textContent='Error koneksi.'; running=false; toggle(false); });
+  }
+  function start(){ prevRem=-1; running=true; toggle(true); loop(); }
+  function toggle(on){ $('btnStart').disabled=on; $('btnForce').disabled=on; $('btnReset').disabled=on; }
+
+  $('btnStart').onclick=()=>{ if(running)return; if(!confirm('Kirim email akun ke editor yang belum terkirim?'))return; start(); };
+  $('btnForce').onclick=()=>{ if(running)return; if(!confirm('KIRIM ULANG ke SEMUA editor (reset status lalu kirim semua)?'))return;
+    toggle(true); post({act:'reset'}).then(d=>{ sent=0; setStat(); start(); }); };
+  $('btnReset').onclick=()=>{ if(running)return; if(!confirm('Reset penanda "sudah terkirim" untuk semua akun?'))return;
+    toggle(true); post({act:'reset'}).then(d=>{ sent=0; setStat(); $('seStatus').textContent=d.msg||''; toggle(false); }); };
+})();
+</script>
+
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>
