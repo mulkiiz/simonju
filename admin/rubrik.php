@@ -70,6 +70,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $RB = rubrik_load();
 $flash = $_GET['msg'] ?? '';
+
+$view = ($_GET['view'] ?? 'rubrik') === 'hasil' ? 'hasil' : 'rubrik';
+
+/* Peta unsur_id -> [kategori, max] untuk hitung skor dari draft. */
+$umap = [];
+foreach ($RB as $kat => $c) {
+    foreach ($c['unsur'] as $u) $umap[(int)$u['id']] = ['kat' => $kat, 'max' => (float)$u['max']];
+}
+$RB_MAX_A = (float)$RB['tata_kelola']['max'];
+$RB_MAX_B = (float)$RB['mutu_artikel']['max'];
+
+/** Prediksi peringkat dari total & disinsentif. */
+function ed_band($total, $disfail) {
+    if ($disfail) return ['Tidak Terakreditasi (disinsentif)', '#dc2626'];
+    if ($total >= 90) return ['Peringkat 1', '#15803d'];
+    if ($total >= 80) return ['Peringkat 2', '#16a34a'];
+    if ($total >= 70) return ['Peringkat 3', '#ca8a04'];
+    if ($total >= 60) return ['Peringkat 4', '#ea580c'];
+    return ['Tidak Terakreditasi', '#dc2626'];
+}
+
+/** Hitung skor 3A/3B + disinsentif dari data draft (array). */
+function ed_score($data, $umap) {
+    $a = $b = 0.0;
+    foreach ($data as $k => $v) {
+        if (strpos($k, 'r_unsur_') !== 0) continue;
+        $id = (int)substr($k, 8);
+        if (!isset($umap[$id])) continue;
+        $val = (float)$v;
+        if ($umap[$id]['kat'] === 'tata_kelola') $a += $val; else $b += $val;
+    }
+    $d1 = $data['d1'] ?? 'tidak';
+    $d2 = $data['d2'] ?? 'ada';
+    $disfail = ($d1 === 'ya') || ($d2 === 'tidak');
+    return ['a' => round($a, 2), 'b' => round($b, 2), 'total' => round($a + $b, 2), 'disfail' => $disfail, 'd1' => $d1, 'd2' => $d2];
+}
+
+$STEP_LABEL = [0=>'Info Umum',1=>'Pengajuan',2=>'Pemeriksaan Awal',3=>'Kelayakan',4=>'3A Tata Kelola',5=>'3B Mutu Artikel',6=>'3C Disinsentif',7=>'Selesai'];
+
+// Data untuk view hasil (list) & detail (jika ?jid=).
+$hasil_rows = [];
+$detail = null;
+if ($view === 'hasil') {
+    $drafts = fetch_all(
+        "SELECT d.jurnal_id, d.step, d.data, d.updated_at, j.nama_jurnal, j.unit_kerja
+         FROM evaluasi_draft d JOIN jurnals j ON j.id=d.jurnal_id
+         ORDER BY d.updated_at DESC"
+    );
+    foreach ($drafts as $d) {
+        $data = json_decode($d['data'] ?? '', true) ?: [];
+        $sc = ed_score($data, $umap);
+        $d['_sc'] = $sc; $d['_data'] = $data;
+        $hasil_rows[] = $d;
+    }
+    $jid = (int)($_GET['jid'] ?? 0);
+    if ($jid) {
+        foreach ($hasil_rows as $r) if ((int)$r['jurnal_id'] === $jid) { $detail = $r; break; }
+    }
+}
 ?>
 <style>
 .rb-tabs{display:flex;gap:0;border-bottom:2px solid #d0d5dd;margin-bottom:22px}
@@ -106,11 +165,17 @@ $flash = $_GET['msg'] ?? '';
 </style>
 
 <div class="page-head">
-  <h1>📐 Master Rubrik Akreditasi</h1>
+  <h1>📐 ED Akreditasi</h1>
 </div>
 
 <?php if ($flash): ?><div class="alert alert-info"><?= h($flash) ?></div><?php endif; ?>
 
+<div class="rb-tabs" style="margin-bottom:18px">
+  <a href="?view=rubrik" class="<?= $view==='rubrik'?'active':'' ?>">📐 Rubrik</a>
+  <a href="?view=hasil" class="<?= $view==='hasil'?'active':'' ?>">📊 Hasil ED Jurnal</a>
+</div>
+
+<?php if ($view === 'rubrik'): ?>
 <div class="rb-tabs">
   <?php foreach ($valid_kat as $k): ?>
     <a href="?tab=<?= $k ?>" class="<?= $tab===$k?'active':'' ?>"><?= h(rubrik_kategori_label($k)) ?></a>
@@ -202,5 +267,93 @@ $ok = abs($max - $target) < 0.001;
     <button class="btn btn-primary btn-sm">➕ Tambah Unsur</button>
   </form>
 </div>
+
+<?php else: /* ===================== VIEW: HASIL ED JURNAL ===================== */ ?>
+
+<style>
+.ed-tab{width:100%;border-collapse:collapse;font-size:13px}
+.ed-tab th{background:#f8fafc;text-align:left;padding:9px 10px;border-bottom:2px solid #e5e7eb;font-size:12px;color:#475569;white-space:nowrap}
+.ed-tab td{padding:9px 10px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.ed-tab tr:hover td{background:#f8fafc}
+.ed-band{display:inline-block;padding:2px 10px;border-radius:99px;color:#fff;font-weight:700;font-size:12px;white-space:nowrap}
+.ed-num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.ed-prog{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:#eef2f7;color:#475569}
+.ed-prog.done{background:#dcfce7;color:#15803d}
+.ed-dl{margin:0;display:grid;grid-template-columns:170px 1fr;gap:6px 12px;font-size:13px}
+.ed-dl dt{color:#64748b}.ed-dl dd{margin:0}
+.ed-det-tab{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+.ed-det-tab td{padding:6px 9px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+.ed-det-tab .c{width:44px;font-weight:700;color:#1e3a8a}
+.ed-det-tab .v{width:66px;text-align:right;font-weight:700;color:#0c1e4a;white-space:nowrap}
+.ed-krit{color:#64748b;font-size:11.5px;margin-top:2px}
+</style>
+
+<?php if ($detail): $sc=$detail['_sc']; $data=$detail['_data']; [$bl,$bc]=ed_band($sc['total'],$sc['disfail']); ?>
+  <p><a href="?view=hasil" class="btn btn-sm">&larr; Daftar Hasil</a></p>
+  <div class="card" style="padding:20px;max-width:860px">
+    <h2 style="margin:0 0 4px"><?= h($detail['nama_jurnal']) ?></h2>
+    <p class="muted small" style="margin:0 0 14px"><?= h($detail['unit_kerja'] ?: '-') ?> · diperbarui <?= h($detail['updated_at']) ?> · langkah: <?= h($STEP_LABEL[(int)$detail['step']] ?? $detail['step']) ?></p>
+
+    <dl class="ed-dl" style="margin-bottom:14px">
+      <dt>Jenis usulan</dt><dd><?= h($data['jenis_usulan'] ?? '-') ?></dd>
+      <dt>Username OJS</dt><dd class="mono"><?= h($data['ojs_user'] ?? '-') ?></dd>
+      <dt>URL login OJS</dt><dd><?= !empty($data['ojs_login_url']) ? '<a href="'.h($data['ojs_login_url']).'" target="_blank" rel="noopener">'.h($data['ojs_login_url']).'</a>' : '-' ?></dd>
+      <dt>Skor 3A / 3B</dt><dd><strong><?= rubrik_num($sc['a']) ?></strong> / <?= rubrik_num($RB_MAX_A) ?> &nbsp;·&nbsp; <strong><?= rubrik_num($sc['b']) ?></strong> / <?= rubrik_num($RB_MAX_B) ?></dd>
+      <dt>Total</dt><dd><strong style="font-size:16px"><?= rubrik_num($sc['total']) ?></strong> / 100 &nbsp; <span class="ed-band" style="background:<?= $bc ?>"><?= h($bl) ?></span></dd>
+      <dt>Disinsentif</dt><dd>Pelanggaran: <strong><?= $sc['d1']==='ya'?'Ya':'Tidak' ?></strong> · Ethical Clearance: <strong><?= $sc['d2']==='tidak'?'Tidak ada':'Ada' ?></strong></dd>
+    </dl>
+
+    <?php foreach (['tata_kelola'=>'STEP 3A — Tata Kelola','mutu_artikel'=>'STEP 3B — Mutu Artikel'] as $kat=>$title): ?>
+      <h3 style="font-size:14px;color:#0c1e4a;margin:16px 0 4px;border-bottom:2px solid #eef2f7;padding-bottom:4px"><?= $title ?></h3>
+      <table class="ed-det-tab"><tbody>
+      <?php foreach ($RB[$kat]['unsur'] as $u):
+          $picked = $data['r_unsur_'.(int)$u['id']] ?? null;
+          $ktext = '(belum dipilih)';
+          if ($picked !== null) { foreach ($u['kriteria'] as $k) if (rubrik_num($k['nilai'])===rubrik_num($picked)) { $ktext=$k['kriteria']; break; } }
+      ?>
+        <tr>
+          <td class="c"><?= h($u['kode']) ?></td>
+          <td><strong><?= h($u['nama']) ?></strong><div class="ed-krit"><?= h($ktext) ?></div></td>
+          <td class="v"><?= $picked!==null ? rubrik_num($picked) : '–' ?> / <?= rubrik_num($u['max']) ?></td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody></table>
+    <?php endforeach; ?>
+  </div>
+
+<?php else: /* list */ ?>
+  <?php if (empty($hasil_rows)): ?>
+    <p class="muted">Belum ada jurnal yang mengisi evaluasi diri.</p>
+  <?php else: ?>
+  <p class="muted small" style="margin:0 0 12px"><?= count($hasil_rows) ?> jurnal telah mengisi / menyimpan draft evaluasi diri.</p>
+  <div class="tbl-wrap" style="overflow-x:auto">
+  <table class="ed-tab">
+    <thead><tr>
+      <th>#</th><th>Nama Jurnal</th><th>Unit</th><th>Langkah</th>
+      <th class="ed-num">3A</th><th class="ed-num">3B</th><th class="ed-num">Total</th>
+      <th>Prediksi</th><th>Diperbarui</th><th></th>
+    </tr></thead>
+    <tbody>
+    <?php foreach ($hasil_rows as $i=>$r): $sc=$r['_sc']; [$bl,$bc]=ed_band($sc['total'],$sc['disfail']); $done=(int)$r['step']>=7; ?>
+      <tr>
+        <td class="muted"><?= $i+1 ?></td>
+        <td><strong><?= h($r['nama_jurnal']) ?></strong></td>
+        <td class="muted"><?= h($r['unit_kerja'] ?: '-') ?></td>
+        <td><span class="ed-prog <?= $done?'done':'' ?>"><?= h($STEP_LABEL[(int)$r['step']] ?? $r['step']) ?></span></td>
+        <td class="ed-num"><?= rubrik_num($sc['a']) ?></td>
+        <td class="ed-num"><?= rubrik_num($sc['b']) ?></td>
+        <td class="ed-num"><?= rubrik_num($sc['total']) ?></td>
+        <td><span class="ed-band" style="background:<?= $bc ?>"><?= h($bl) ?></span></td>
+        <td class="muted small"><?= h($r['updated_at']) ?></td>
+        <td><a class="btn btn-sm" href="?view=hasil&jid=<?= (int)$r['jurnal_id'] ?>">Detail</a></td>
+      </tr>
+    <?php endforeach; ?>
+    </tbody>
+  </table>
+  </div>
+  <?php endif; ?>
+<?php endif; ?>
+
+<?php endif; /* view */ ?>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -328,7 +328,7 @@ footer a{color:#fff}
         <p>🌐 <a href="https://unsoed.ac.id" target="_blank" rel="noopener">unsoed.ac.id</a></p>
         <p>🌐 <a href="https://lppm.unsoed.ac.id" target="_blank" rel="noopener">lppm.unsoed.ac.id</a></p>
         <p>🌐 <a href="https://rju.unsoed.ac.id" target="_blank" rel="noopener">rju.unsoed.ac.id</a></p>
-        <p>🌐 <a href="https://jos.unsoed.ac.id" target="_blank" rel="noopener">jos.unsoed.ac.id</a></p>
+        <p>🌐 <a href="https://jurnal.unsoed.ac.id" target="_blank" rel="noopener">jurnal.unsoed.ac.id</a></p>
       </div>
     </div>
     <div class="foot-bot">
