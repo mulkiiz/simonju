@@ -170,17 +170,14 @@ if ($view === 'hasil') {
 
 <?php if ($flash): ?><div class="alert alert-info"><?= h($flash) ?></div><?php endif; ?>
 
-<div class="rb-tabs" style="margin-bottom:18px">
-  <a href="?view=rubrik" class="<?= $view==='rubrik'?'active':'' ?>">📐 Rubrik</a>
+<div class="rb-tabs">
+  <?php foreach ($valid_kat as $k): ?>
+    <a href="?tab=<?= $k ?>" class="<?= ($view==='rubrik' && $tab===$k)?'active':'' ?>"><?= h(rubrik_kategori_label($k)) ?></a>
+  <?php endforeach; ?>
   <a href="?view=hasil" class="<?= $view==='hasil'?'active':'' ?>">📊 Hasil ED Jurnal</a>
 </div>
 
 <?php if ($view === 'rubrik'): ?>
-<div class="rb-tabs">
-  <?php foreach ($valid_kat as $k): ?>
-    <a href="?tab=<?= $k ?>" class="<?= $tab===$k?'active':'' ?>"><?= h(rubrik_kategori_label($k)) ?></a>
-  <?php endforeach; ?>
-</div>
 
 <?php
 $cat = $RB[$tab];
