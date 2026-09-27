@@ -58,6 +58,17 @@ $s_issn_blm   = (int)($tf['issn_blm_akred'] ?? 0);
 $s_belum_issn = (int)($tf_issn['n'] ?? 0);
 $s_ber_apc    = (int)($tf['ber_apc'] ?? 0);
 
+// Jenis jurnal terkonfirmasi (nilai lama/kosong dihitung sebagai Penelitian).
+$jenis_rows = fetch_all(
+    "SELECT CASE WHEN jenis_jurnal='pengabdian' THEN 'pengabdian' ELSE 'penelitian' END AS jenis,
+            COUNT(*) AS n
+       FROM jurnals
+      WHERE konfirmasi_status='terkonfirmasi'
+      GROUP BY CASE WHEN jenis_jurnal='pengabdian' THEN 'pengabdian' ELSE 'penelitian' END"
+) ?: [];
+$jenis_map = ['penelitian' => 0, 'pengabdian' => 0];
+foreach ($jenis_rows as $r) $jenis_map[$r['jenis']] = (int)$r['n'];
+
 // Sinta breakdown (terkonfirmasi only)
 $sinta_rows = fetch_all(
     "SELECT akreditasi_peringkat AS p, COUNT(*) AS n
@@ -264,6 +275,14 @@ $cg_str = $cg ? implode(',', $cg) : '#eef1f5 0% 100%';
         <h3>Rincian Data Jurnal</h3>
       </div>
       <div class="mini-grid">
+        <div class="mini-item" style="cursor:default">
+          <div class="mi-ic" style="background:#e8efff;color:#1c3a6e">🔬</div>
+          <div><div class="mi-num"><?= $jenis_map['penelitian'] ?></div><div class="mi-lbl">Jurnal Penelitian</div></div>
+        </div>
+        <div class="mini-item" style="cursor:default">
+          <div class="mi-ic" style="background:#e1f3e8;color:#1c7a47">🤝</div>
+          <div><div class="mi-num"><?= $jenis_map['pengabdian'] ?></div><div class="mi-lbl">Jurnal Pengabdian</div></div>
+        </div>
         <a href="dashboard.php?akr=scopus" class="mini-item mi-scopus">
           <div class="mi-ic">🌐</div>
           <div><div class="mi-num"><?= $s_scopus ?></div><div class="mi-lbl">Terindeks Scopus<?php if ($scopus_detail_str !== ''): ?><br><span class="muted" style="font-weight:500"><?= h($scopus_detail_str) ?></span><?php endif; ?></div></div>
@@ -376,12 +395,13 @@ function stat_links_html($r) {
   <p class="prof-sub">Semua jurnal terkonfirmasi, urut artikel terbanyak dalam 3 tahun terakhir. Klik ikon: 📄 detail · 🌐 portal jurnal · 🏅 Sinta.</p>
   <div class="table-wrap" style="max-height:520px;overflow-y:auto">
   <table class="table">
-    <thead><tr><th>#</th><th>Jurnal</th><th>Akreditasi</th><th>Vol. Terkini</th><th class="num">Terbitan</th><th class="num">Artikel</th><th>Tautan</th></tr></thead>
+    <thead><tr><th>#</th><th>Jurnal</th><th>Jenis</th><th>Akreditasi</th><th>Vol. Terkini</th><th class="num">Terbitan</th><th class="num">Artikel</th><th>Tautan</th></tr></thead>
     <tbody>
     <?php $no=1; foreach ($top as $r): ?>
       <tr>
         <td><?= $no++ ?></td>
         <td><a href="jurnal_view.php?id=<?= (int)$r['id'] ?>"><?= h($r['nama_jurnal']) ?></a></td>
+        <td><?= ($r['jenis_jurnal'] ?? 'penelitian') === 'pengabdian' ? 'Pengabdian' : 'Penelitian' ?></td>
         <td><?= stat_badge_html($r) ?></td>
         <td class="small"><?= h(stat_cur_vol_text($r)) ?></td>
         <td class="num"><?= (int)$r['issues'] ?></td>
@@ -389,7 +409,7 @@ function stat_links_html($r) {
         <td class="small"><?= stat_links_html($r) ?></td>
       </tr>
     <?php endforeach; ?>
-    <?php if (empty($top)): ?><tr><td colspan="7" class="muted">Belum ada data terbitan 3 tahun terakhir.</td></tr><?php endif; ?>
+    <?php if (empty($top)): ?><tr><td colspan="8" class="muted">Belum ada data terbitan 3 tahun terakhir.</td></tr><?php endif; ?>
     </tbody>
   </table>
   </div>
@@ -409,19 +429,20 @@ foreach ($blocks as [$judul, $rows]):
   </div>
   <div class="table-wrap">
   <table class="table">
-    <thead><tr><th>#</th><th>Jurnal</th><th>Akreditasi</th><th>Vol. Terkini</th><th>Crawl Terakhir</th><th>Tautan</th></tr></thead>
+    <thead><tr><th>#</th><th>Jurnal</th><th>Jenis</th><th>Akreditasi</th><th>Vol. Terkini</th><th>Crawl Terakhir</th><th>Tautan</th></tr></thead>
     <tbody>
     <?php $no=1; foreach ($rows as $r): ?>
       <tr>
         <td><?= $no++ ?></td>
         <td><a href="jurnal_view.php?id=<?= (int)$r['id'] ?>"><?= h($r['nama_jurnal']) ?></a></td>
+        <td><?= ($r['jenis_jurnal'] ?? 'penelitian') === 'pengabdian' ? 'Pengabdian' : 'Penelitian' ?></td>
         <td><?= stat_badge_html($r) ?></td>
         <td class="small"><?= h(stat_cur_vol_text($r)) ?></td>
         <td class="small muted"><?= h($r['last_crawled_at'] ?: '—') ?></td>
         <td class="small"><?= stat_links_html($r) ?></td>
       </tr>
     <?php endforeach; ?>
-    <?php if (empty($rows)): ?><tr><td colspan="6" class="muted">Tidak ada — semua jurnal punya terbitan.</td></tr><?php endif; ?>
+    <?php if (empty($rows)): ?><tr><td colspan="7" class="muted">Tidak ada — semua jurnal punya terbitan.</td></tr><?php endif; ?>
     </tbody>
   </table>
   </div>

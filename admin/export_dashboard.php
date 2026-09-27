@@ -12,7 +12,7 @@ require_once __DIR__ . '/../includes/stat_analytics.php';
 
 // ---- Kolom XLSX ----
 $headers = [
-    'No', 'Nama Jurnal', 'Unit Kerja', 'URL Archive',
+    'No', 'Nama Jurnal', 'Jenis Jurnal', 'Unit Kerja', 'URL Archive',
     'Akreditasi Jenis', 'Peringkat', 'Scopus',
     'p-ISSN', 'e-ISSN',
     'APC (Rp)', 'DOI',
@@ -70,6 +70,7 @@ foreach ($sheets as $title => $where) {
         $data[] = [
             $no++,
             $r['nama_jurnal'] ?? '',
+            ($r['jenis_jurnal'] ?? 'penelitian') === 'pengabdian' ? 'Pengabdian' : 'Penelitian',
             $r['unit_kerja'] ?? '',
             $r['url_archive'] ?? '',
             $r['akreditasi_jenis'] ?? 'belum',
@@ -96,11 +97,11 @@ foreach ($sheets as $title => $where) {
 [$cy, $cy1, $cy2] = stat_years();
 
 // Top artikel 3 tahun
-$h_top = ['No', 'Nama Jurnal', 'Akreditasi', 'Vol. Terkini', "Terbitan ({$cy2}-{$cy})", "Artikel ({$cy2}-{$cy})", 'URL Portal', 'Link Sinta'];
+$h_top = ['No', 'Nama Jurnal', 'Jenis Jurnal', 'Akreditasi', 'Vol. Terkini', "Terbitan ({$cy2}-{$cy})", "Artikel ({$cy2}-{$cy})", 'URL Portal', 'Link Sinta'];
 $d_top = []; $no = 1;
 foreach (stat_top_artikel(100) as $r) {
     $d_top[] = [
-        $no++, $r['nama_jurnal'] ?? '', stat_akr_text($r), stat_cur_vol_text($r),
+        $no++, $r['nama_jurnal'] ?? '', ($r['jenis_jurnal'] ?? 'penelitian') === 'pengabdian' ? 'Pengabdian' : 'Penelitian', stat_akr_text($r), stat_cur_vol_text($r),
         (int)$r['issues'], (int)$r['artikel'],
         $r['url_archive'] ?? '', $r['link_sinta'] ?? '',
     ];
@@ -108,7 +109,7 @@ foreach (stat_top_artikel(100) as $r) {
 $xlsx->addSheet('Top Artikel 3Th', $h_top, $d_top);
 
 // Belum ada terbitan per tahun + 3 tahun
-$h_no = ['No', 'Nama Jurnal', 'Akreditasi', 'Vol. Terkini', 'Crawl Terakhir', 'URL Portal', 'Link Sinta'];
+$h_no = ['No', 'Nama Jurnal', 'Jenis Jurnal', 'Akreditasi', 'Vol. Terkini', 'Crawl Terakhir', 'URL Portal', 'Link Sinta'];
 $no_sheets = [
     "Belum Terbit {$cy}"        => stat_belum_cy_terakhir_cy1(),
     "Belum Terbit 2Th ({$cy2}-)" => stat_belum_2th(),
@@ -117,7 +118,7 @@ foreach ($no_sheets as $title => $rows) {
     $data = []; $no = 1;
     foreach ($rows as $r) {
         $data[] = [
-            $no++, $r['nama_jurnal'] ?? '', stat_akr_text($r), stat_cur_vol_text($r),
+            $no++, $r['nama_jurnal'] ?? '', ($r['jenis_jurnal'] ?? 'penelitian') === 'pengabdian' ? 'Pengabdian' : 'Penelitian', stat_akr_text($r), stat_cur_vol_text($r),
             $r['last_crawled_at'] ?? '', $r['url_archive'] ?? '', $r['link_sinta'] ?? '',
         ];
     }

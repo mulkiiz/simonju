@@ -16,7 +16,7 @@ function stat_years() {
 function stat_jurnal_cols() {
     // cur_issue = terbitan TERBARU jurnal (vol|nomor|tahun), diurutkan
     // tahun lalu volume lalu nomor menurun.
-    return "j.id, j.nama_jurnal, j.akreditasi_jenis, j.akreditasi_peringkat,
+    return "j.id, j.nama_jurnal, j.jenis_jurnal, j.akreditasi_jenis, j.akreditasi_peringkat,
             j.is_scopus, j.scopus_q, j.url_archive, j.link_sinta, j.last_crawled_at,
             (SELECT CONCAT_WS('|', t2.volume, t2.nomor, t2.tahun)
                FROM terbitan t2 WHERE t2.jurnal_id = j.id

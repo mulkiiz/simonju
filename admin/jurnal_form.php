@@ -19,6 +19,7 @@ $errors = [];
 // --- Nilai awal: gabungan kolom jurnals + editor ---
 $data = [
     // Tabel jurnals
+    'jenis_jurnal'        => $row['jenis_jurnal']        ?? 'penelitian',
     'nama_jurnal'          => $row['nama_jurnal']          ?? '',
     'unit_kerja'           => $row['unit_kerja']           ?? '',
     'url_archive'          => $row['url_archive']          ?? '',
@@ -58,6 +59,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data[$k] = ($k === 'is_scopus')
             ? (!empty($_POST['is_scopus']) ? 1 : 0)
             : trim($_POST[$k] ?? '');
+    }
+    if (!in_array($data['jenis_jurnal'], ['penelitian', 'pengabdian'], true)) {
+        $data['jenis_jurnal'] = 'penelitian';
+        $errors[] = 'Pilih jenis jurnal yang valid.';
     }
     if ($data['akreditasi_jenis'] === '') $data['akreditasi_jenis'] = 'belum';
 
@@ -159,15 +164,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($is_edit) {
             exec_q(
                 "UPDATE jurnals SET
-                    nama_jurnal=?, unit_kerja=?, url_archive=?,
+                    jenis_jurnal=?, nama_jurnal=?, unit_kerja=?, url_archive=?,
                     frekuensi_terbit=?, volume_per_tahun=?, apc=?,
                     doi=?, issn=?, p_issn=?, e_issn=?,
                     akreditasi_jenis=?, akreditasi_peringkat=?, akreditasi_url=?,
                     is_scopus=?, scopus_q=?, scopus_url=?,
                     link_gscholar=?, link_garuda=?, link_editor=?, link_sinta=?
                  WHERE id=?",
-                'sssssssssssssissssssi',
-                [$data['nama_jurnal'], $data['unit_kerja'], $data['url_archive'],
+                'ssssssssssssssissssssi',
+                [$data['jenis_jurnal'], $data['nama_jurnal'], $data['unit_kerja'], $data['url_archive'],
                  $data['frekuensi_terbit'], $data['volume_per_tahun'], $data['apc'],
                  $data['doi'], $data['issn'], $data['p_issn'], $data['e_issn'],
                  $data['akreditasi_jenis'], $data['akreditasi_peringkat'], $data['akreditasi_url'],
@@ -182,16 +187,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $konf_token = bin2hex(random_bytes(8)); // 16 char
             $r = exec_q(
                 "INSERT INTO jurnals
-                    (nama_jurnal, unit_kerja, url_archive,
+                    (jenis_jurnal, nama_jurnal, unit_kerja, url_archive,
                      frekuensi_terbit, volume_per_tahun, apc,
                      doi, issn, p_issn, e_issn,
                      akreditasi_jenis, akreditasi_peringkat, akreditasi_url,
                      is_scopus, scopus_q, scopus_url,
                      link_gscholar, link_garuda, link_editor, link_sinta,
                      konfirmasi_status, konfirmasi_token, konfirmasi_at)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'terkonfirmasi',?,NOW())",
-                'sssssssssssssisssssss',
-                [$data['nama_jurnal'], $data['unit_kerja'], $data['url_archive'],
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'terkonfirmasi',?,NOW())",
+                'ssssssssssssssisssssss',
+                [$data['jenis_jurnal'], $data['nama_jurnal'], $data['unit_kerja'], $data['url_archive'],
                  $data['frekuensi_terbit'], $data['volume_per_tahun'], $data['apc'],
                  $data['doi'], $data['issn'], $data['p_issn'], $data['e_issn'],
                  $data['akreditasi_jenis'], $data['akreditasi_peringkat'], $data['akreditasi_url'],
@@ -260,6 +265,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <fieldset>
     <legend>Identitas Jurnal</legend>
+    <div style="margin-bottom:14px">
+      <strong>Jenis Jurnal</strong>
+      <div style="display:flex;gap:20px;align-items:center;margin-top:6px">
+        <label style="display:flex;gap:7px;align-items:center;font-weight:400;margin:0">
+          <input type="radio" name="jenis_jurnal" value="penelitian" <?= $data['jenis_jurnal'] === 'penelitian' ? 'checked' : '' ?>> Penelitian
+        </label>
+        <label style="display:flex;gap:7px;align-items:center;font-weight:400;margin:0">
+          <input type="radio" name="jenis_jurnal" value="pengabdian" <?= $data['jenis_jurnal'] === 'pengabdian' ? 'checked' : '' ?>> Pengabdian
+        </label>
+      </div>
+    </div>
     <label>Nama Jurnal *
       <input type="text" name="nama_jurnal" value="<?= h($data['nama_jurnal']) ?>" required>
     </label>

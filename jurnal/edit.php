@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Sanitize input
     $nama         = trim($_POST['nama_jurnal'] ?? '');
+    $jenis_jurnal = trim($_POST['jenis_jurnal'] ?? 'penelitian');
     $unit_kerja   = trim($_POST['unit_kerja'] ?? '');
     $url_archive  = trim($_POST['url_archive'] ?? '');
     $frekuensi    = trim($_POST['frekuensi_terbit'] ?? '');
@@ -38,19 +39,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ed_sinta      = trim($_POST['editor_sinta_id'] ?? '');
     $ed_gscholar   = trim($_POST['editor_gscholar_id'] ?? '');
 
-    if ($nama === '') {
+    if (!in_array($jenis_jurnal, ['penelitian', 'pengabdian'], true)) {
+        $err = 'Pilih jenis jurnal yang valid.';
+    } elseif ($nama === '') {
         $err = 'Nama jurnal wajib diisi.';
     } else {
         // Update jurnals
         exec_q(
             "UPDATE jurnals SET
-                nama_jurnal=?, unit_kerja=?, url_archive=?, frekuensi_terbit=?,
+                jenis_jurnal=?, nama_jurnal=?, unit_kerja=?, url_archive=?, frekuensi_terbit=?,
                 volume_per_tahun=?, apc=?, doi=?, p_issn=?, e_issn=?,
                 link_gscholar=?, link_garuda=?, link_editor=?, link_sinta=?,
                 updated_at=NOW()
              WHERE id=?",
-            'sssssssssssssi',
-            [$nama, $unit_kerja, $url_archive, $frekuensi,
+            'ssssssssssssssi',
+            [$jenis_jurnal, $nama, $unit_kerja, $url_archive, $frekuensi,
              $vol_per_thn, $apc, $doi, $p_issn, $e_issn,
              $link_gscholar, $link_garuda, $link_editor, $link_sinta,
              $jid]
@@ -86,6 +89,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <fieldset>
     <legend>📚 Info Jurnal</legend>
+    <div style="margin-bottom:14px">
+      <strong>Jenis Jurnal</strong>
+      <div style="display:flex;gap:20px;align-items:center;margin-top:6px">
+        <label style="display:flex;gap:7px;align-items:center;font-weight:400;margin:0">
+          <input type="radio" name="jenis_jurnal" value="penelitian" <?= ($j['jenis_jurnal'] ?? 'penelitian') === 'penelitian' ? 'checked' : '' ?>> Penelitian
+        </label>
+        <label style="display:flex;gap:7px;align-items:center;font-weight:400;margin:0">
+          <input type="radio" name="jenis_jurnal" value="pengabdian" <?= ($j['jenis_jurnal'] ?? 'penelitian') === 'pengabdian' ? 'checked' : '' ?>> Pengabdian
+        </label>
+      </div>
+    </div>
     <label>Nama Jurnal *
       <input type="text" name="nama_jurnal" value="<?= h($j['nama_jurnal']) ?>" required>
     </label>
