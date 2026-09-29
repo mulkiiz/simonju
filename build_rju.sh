@@ -17,6 +17,7 @@ cd "$(dirname "$0")"
 not_relevant() {
   case "$1" in
     includes/config.php) return 0 ;;          # per-server
+    tests/*) return 0 ;;                       # hanya untuk verifikasi lokal
     api/*) return 0 ;;                          # khusus ppj (source)
     cron/cron_crawl.php) return 0 ;;            # khusus ppj
     cron/sync.php|cron/feed_pull.php|cron/feed_import.php) return 0 ;; # mati (AV)
@@ -32,18 +33,23 @@ FULL_FILES="
 lib/crawler.php
 lib/feeder.php
 lib/doi.php
+lib/sinta_history.php
 cron/run.php
 includes/auth.php
 includes/header_admin.php
 includes/header_jurnal.php
 includes/stat_analytics.php
 includes/cacert.pem
+includes/history_akreditasi_view.php
 index.php
 admin/statistik.php
 admin/export_dashboard.php
 admin/export_katalog.php
 admin/cron_health.php
 admin/dashboard.php
+admin/rubrik.php
+admin/sinta_history_export.php
+admin/sinta_history_sync.php
 admin/jurnal_view.php
 admin/jurnal_form.php
 admin/jurnal_delete.php

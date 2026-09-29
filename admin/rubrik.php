@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $RB = rubrik_load();
 $flash = $_GET['msg'] ?? '';
 
-$view = ($_GET['view'] ?? 'rubrik') === 'hasil' ? 'hasil' : 'rubrik';
+$view = in_array($_GET['view'] ?? '', ['hasil', 'history'], true) ? $_GET['view'] : 'rubrik';
 
 /* Peta unsur_id -> [kategori, max] untuk hitung skor dari draft. */
 $umap = [];
@@ -131,7 +131,7 @@ if ($view === 'hasil') {
 }
 ?>
 <style>
-.rb-tabs{display:flex;gap:0;border-bottom:2px solid #d0d5dd;margin-bottom:22px}
+.rb-tabs{display:flex;flex-wrap:wrap;gap:0;border-bottom:2px solid #d0d5dd;margin-bottom:22px}
 .rb-tabs a{padding:10px 22px;text-decoration:none;font-weight:600;font-size:14px;color:#667085;border-bottom:2px solid transparent;margin-bottom:-2px}
 .rb-tabs a.active{color:#1d4ed8;border-bottom-color:#1d4ed8}
 .rb-sum{display:flex;align-items:center;gap:10px;margin-bottom:18px;font-size:14px}
@@ -175,6 +175,7 @@ if ($view === 'hasil') {
     <a href="?tab=<?= $k ?>" class="<?= ($view==='rubrik' && $tab===$k)?'active':'' ?>"><?= h(rubrik_kategori_label($k)) ?></a>
   <?php endforeach; ?>
   <a href="?view=hasil" class="<?= $view==='hasil'?'active':'' ?>">📊 Hasil ED Jurnal</a>
+  <a href="?view=history" class="<?= $view==='history'?'active':'' ?>">History Akreditasi</a>
 </div>
 
 <?php if ($view === 'rubrik'): ?>
@@ -265,6 +266,8 @@ $ok = abs($max - $target) < 0.001;
   </form>
 </div>
 
+<?php elseif ($view === 'history'): ?>
+  <?php require __DIR__ . '/../includes/history_akreditasi_view.php'; ?>
 <?php else: /* ===================== VIEW: HASIL ED JURNAL ===================== */ ?>
 
 <style>

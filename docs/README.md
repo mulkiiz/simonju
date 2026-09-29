@@ -106,6 +106,48 @@ dan `USERNAME` dengan username cPanel Anda.
 - Jika sebuah jurnal pakai struktur HTML non-OJS, crawler hanya akan mendapat
   hasil parsial atau kosong; bisa dilihat di **Log Crawler**.
 
+## History Akreditasi SINTA
+
+- Buka **ED Akreditasi → History Akreditasi** (`admin/rubrik.php?view=history`).
+  Saat belum ada data, tab memulai sinkronisasi pertama otomatis. Setelahnya,
+  tombol **Sinkronkan dari SINTA** memperbarui hasil yang tersimpan.
+- Sumber daftar adalah `https://sinta.kemdiktisaintek.go.id/journals/index/7`
+  (afiliasi Unsoed). Engine membaca semua halaman, memeriksa jumlah jurnal unik
+  terhadap total SINTA, kemudian membuka setiap profil jurnal. Tidak bergantung
+  pada daftar jurnal yang sudah terdaftar di SIMONJU.
+  Form urutan Citations SINTA digunakan untuk mengurangi urutan yang berubah;
+  jika masih ada ID duplikat lintas halaman, daftar diperiksa hingga tiga putaran
+  dan digabung berdasarkan ID sebelum dinyatakan lengkap.
+- Tabel menampilkan setiap tahun dan peringkat pada **History Accreditation**,
+  ISSN, penerbit, peringkat saat ini, tautan sumber, dan waktu pengambilan.
+  Tahun yang kosong tidak diisi otomatis dan tahun artikel tidak ikut dihitung.
+  Hanya jurnal yang memiliki history yang tampil. Filter **Habis akreditasi**
+  menawarkan tahun berjalan hingga empat tahun berikutnya, berdasarkan tahun
+  history terakhir yang tercantum di profil SINTA. **Export Excel** mengunduh satu
+  workbook dengan lima sheet, satu untuk tiap tahun yang tersedia pada filter.
+- Profil ganda Jurnal Akuntansi, Manajemen dan Ekonomi (SINTA 3809 / 9842)
+  diwakili profil 9842, sesuai pilihan PPJ; profil 3809 tidak disimpan saat sinkronisasi.
+- Satu permintaan hanya mengambil satu halaman/profil. Biarkan tab terbuka selama
+  proses; **Jeda**, **Lanjutkan sinkronisasi**, dan **Ulangi dari awal** tersedia.
+  Menutup tab menghentikan permintaan selanjutnya; pekerjaan tersimpan dapat
+  dilanjutkan. Sinkronisasi memakai lock database agar dua admin tidak menulis
+  bersamaan, jeda `CRAWLER_DELAY_MS`, timeout `CRAWLER_TIMEOUT`, dan User-Agent
+  browser dari `crawler_ua()` yang sudah digunakan crawler aplikasi.
+- Tabel `sinta_history_state` dibuat otomatis saat sinkronisasi pertama (perlu
+  izin CREATE). PHP memerlukan cURL, DOM, mysqli, dan dukungan CA HTTPS yang valid.
+  Verifikasi sertifikat tetap aktif; CA custom aplikasi dicoba jika CA sistem gagal.
+- Hasil terakhir dipertahankan selama proses. Jika profil gagal diperbarui, data
+  lama untuk profil tersebut tetap tampil dengan penanda; profil yang belum pernah
+  berhasil diambil ditandai secara eksplisit. Daftar error dapat dibuka di tab;
+  **Coba ulang profil gagal** hanya mengambil ulang profil yang bermasalah.
+  Profil lengkap yang tidak menyediakan bagian history ditandai **Tidak tersedia
+  di SINTA**, termasuk ketika profil masih memiliki peringkat saat ini.
+  Jika paginasi/struktur berubah atau akses diblokir, proses tidak dianggap lengkap.
+  Perbaiki penyebab lalu lanjutkan atau ulangi dari awal jika daftar berubah.
+- Endpoint `admin/sinta_history_sync.php` hanya menerima POST dari admin/operator
+  yang login dengan CSRF valid. Tidak mengubah data master atau akreditasi jurnal
+  yang diisi manual. Pengujian parser: `php tests/sinta_history_test.php`.
+
 ## Keamanan
 
 - ✅ Password bcrypt (`password_hash` / `password_verify`)
