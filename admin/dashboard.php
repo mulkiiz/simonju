@@ -363,9 +363,8 @@ function build_qs($override = []) {
     <thead>
       <tr>
         <th>Nama Jurnal</th>
-        <th>Akreditasi</th>
-        <th>p-ISSN</th>
-        <th>e-ISSN</th>
+        <th>Jenis Jurnal / Akreditasi</th>
+        <th>ISSN</th>
         <th>Ketua Editor</th>
         <?php if ($show_apc): ?><th>APC</th><?php endif; ?>
         <th class="num">Terbitan</th>
@@ -384,6 +383,7 @@ function build_qs($override = []) {
       $eissn = trim($j['e_issn'] ?? '');
       $pissn_valid = ($pissn !== '');
       $eissn_valid = ($eissn !== '');
+      $jenis_jurnal = ($j['jenis_jurnal'] ?? 'penelitian') === 'pengabdian' ? 'Pengabdian' : 'Penelitian';
     ?>
       <tr>
         <td>
@@ -394,6 +394,7 @@ function build_qs($override = []) {
           <?php endif; ?>
         </td>
         <td>
+          <div class="small" style="margin-bottom:4px"><?= h($jenis_jurnal) ?></div>
           <?php
             $sinta_ok  = ($aj === 'sinta' && $ap !== '');
             $scopus_ok = ($is_scopus && $sq !== '');
@@ -411,8 +412,14 @@ function build_qs($override = []) {
             <span class="akr-badge akr-belum">Belum</span>
           <?php endif; ?>
         </td>
-        <td><?php if ($pissn_valid): ?><span><?= h($pissn) ?></span><?php else: ?><span class="muted">—</span><?php endif; ?></td>
-        <td><?php if ($eissn_valid): ?><span><?= h($eissn) ?></span><?php else: ?><span class="muted">—</span><?php endif; ?></td>
+        <td class="small">
+          <?php if ($pissn_valid || $eissn_valid): ?>
+            <?php if ($pissn_valid): ?><div><span class="muted">P:</span> <?= h($pissn) ?></div><?php endif; ?>
+            <?php if ($eissn_valid): ?><div><span class="muted">E:</span> <?= h($eissn) ?></div><?php endif; ?>
+          <?php else: ?>
+            <span class="muted">—</span>
+          <?php endif; ?>
+        </td>
         <td><?= h($j['editor_nama'] ?: '—') ?></td>
         <?php if ($show_apc): $apc_display = fmt_apc($j['apc'] ?? ''); ?>
         <td>

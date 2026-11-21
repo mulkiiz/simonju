@@ -111,6 +111,13 @@ $unit_rows = fetch_all(
       GROUP BY unit_kerja
       ORDER BY n DESC, unit_kerja ASC"
 ) ?: [];
+// Jurnal terkonfirmasi yg unit kerjanya belum diisi (agar rekonsiliasi = total)
+$unit_kosong = (int)(fetch_one(
+    "SELECT COUNT(*) AS n FROM jurnals
+      WHERE konfirmasi_status='terkonfirmasi'
+        AND (unit_kerja IS NULL OR TRIM(unit_kerja)='')"
+)['n'] ?? 0);
+$unit_sum = array_sum(array_column($unit_rows, 'n')) + $unit_kosong; // = total terkonfirmasi
 
 // Pie chart data
 $pie = [
@@ -191,6 +198,10 @@ $cg_str = $cg ? implode(',', $cg) : '#eef1f5 0% 100%';
   .unit-list a:hover{background:#eef2f9;border-color:#b8c4d6;text-decoration:none}
   .unit-list .ul-name{flex:1;line-height:1.3}
   .unit-list .ul-n{flex-shrink:0;min-width:30px;text-align:center;font-weight:800;color:#1c3a6e;background:#e6effb;border-radius:6px;padding:2px 8px}
+  .unit-list .ul-static{display:flex;align-items:center;gap:10px;background:#f7f9fc;border:1px solid #e7ebf2;border-radius:9px;padding:9px 12px;font-size:.84rem;color:#33415c}
+  .unit-list .ul-total{background:#d8e2f3;border-color:#b8c4d6;font-weight:800}
+  .unit-list .ul-total .ul-name{color:#1c3a6e}
+  .unit-list .ul-total .ul-n{background:#1c3a6e;color:#fff}
 
   @media(max-width:768px){.stat-cards{grid-template-columns:repeat(2,1fr)}.prof-grid{grid-template-columns:1fr}.mini-grid,.mini-grid-3{grid-template-columns:1fr 1fr}.rincian-row{grid-template-columns:1fr}.stat-2col{grid-template-columns:1fr}}
   @media(max-width:480px){.stat-cards{grid-template-columns:1fr 1fr}.mini-grid,.mini-grid-3{grid-template-columns:1fr}}
@@ -332,7 +343,7 @@ $cg_str = $cg ? implode(',', $cg) : '#eef1f5 0% 100%';
     <div class="section-card">
       <div class="prof-head">
         <span style="font-size:1.15rem">🏛️</span>
-        <h3>Jumlah Jurnal per Unit Kerja <span class="muted" style="font-weight:400">(<?= count($unit_rows) ?>)</span></h3>
+        <h3>Jumlah Jurnal per Unit Kerja <span class="muted" style="font-weight:400">(<?= count($unit_rows) ?> unit)</span></h3>
       </div>
       <ul class="unit-list">
         <?php foreach ($unit_rows as $u): ?>
@@ -343,7 +354,21 @@ $cg_str = $cg ? implode(',', $cg) : '#eef1f5 0% 100%';
             </a>
           </li>
         <?php endforeach; ?>
-        <?php if (empty($unit_rows)): ?><li class="muted" style="padding:8px 4px">Belum ada data unit kerja.</li><?php endif; ?>
+        <?php if ($unit_kosong > 0): ?>
+          <li>
+            <span class="ul-static" title="Jurnal tanpa unit kerja">
+              <span class="ul-name muted">Belum ditetapkan</span>
+              <span class="ul-n"><?= $unit_kosong ?></span>
+            </span>
+          </li>
+        <?php endif; ?>
+        <?php if (empty($unit_rows) && $unit_kosong === 0): ?><li class="muted" style="padding:8px 4px">Belum ada data unit kerja.</li><?php endif; ?>
+        <li>
+          <span class="ul-static ul-total">
+            <span class="ul-name">Total</span>
+            <span class="ul-n"><?= $unit_sum ?></span>
+          </span>
+        </li>
       </ul>
     </div>
   </div>
@@ -395,13 +420,13 @@ function stat_links_html($r) {
   <p class="prof-sub">Semua jurnal terkonfirmasi, urut artikel terbanyak dalam 3 tahun terakhir. Klik ikon: 📄 detail · 🌐 portal jurnal · 🏅 Sinta.</p>
   <div class="table-wrap" style="max-height:520px;overflow-y:auto">
   <table class="table">
-    <thead><tr><th>#</th><th>Jurnal</th><th>Jenis</th><th>Akreditasi</th><th>Vol. Terkini</th><th class="num">Terbitan</th><th class="num">Artikel</th><th>Tautan</th></tr></thead>
+    <thead><tr><th>#</th><th>Jurnal</th><th>Unit</th><th>Akreditasi</th><th>Vol. Terkini</th><th class="num">Terbitan</th><th class="num">Artikel</th><th>Tautan</th></tr></thead>
     <tbody>
     <?php $no=1; foreach ($top as $r): ?>
       <tr>
         <td><?= $no++ ?></td>
         <td><a href="jurnal_view.php?id=<?= (int)$r['id'] ?>"><?= h($r['nama_jurnal']) ?></a></td>
-        <td><?= ($r['jenis_jurnal'] ?? 'penelitian') === 'pengabdian' ? 'Pengabdian' : 'Penelitian' ?></td>
+        <td><?= h(trim((string)($r['unit_kerja'] ?? '')) ?: '—') ?></td>
         <td><?= stat_badge_html($r) ?></td>
         <td class="small"><?= h(stat_cur_vol_text($r)) ?></td>
         <td class="num"><?= (int)$r['issues'] ?></td>
@@ -429,13 +454,13 @@ foreach ($blocks as [$judul, $rows]):
   </div>
   <div class="table-wrap">
   <table class="table">
-    <thead><tr><th>#</th><th>Jurnal</th><th>Jenis</th><th>Akreditasi</th><th>Vol. Terkini</th><th>Crawl Terakhir</th><th>Tautan</th></tr></thead>
+    <thead><tr><th>#</th><th>Jurnal</th><th>Unit</th><th>Akreditasi</th><th>Vol. Terkini</th><th>Crawl Terakhir</th><th>Tautan</th></tr></thead>
     <tbody>
     <?php $no=1; foreach ($rows as $r): ?>
       <tr>
         <td><?= $no++ ?></td>
         <td><a href="jurnal_view.php?id=<?= (int)$r['id'] ?>"><?= h($r['nama_jurnal']) ?></a></td>
-        <td><?= ($r['jenis_jurnal'] ?? 'penelitian') === 'pengabdian' ? 'Pengabdian' : 'Penelitian' ?></td>
+        <td><?= h(trim((string)($r['unit_kerja'] ?? '')) ?: '—') ?></td>
         <td><?= stat_badge_html($r) ?></td>
         <td class="small"><?= h(stat_cur_vol_text($r)) ?></td>
         <td class="small muted"><?= h($r['last_crawled_at'] ?: '—') ?></td>
